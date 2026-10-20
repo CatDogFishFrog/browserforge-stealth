@@ -1,4 +1,5 @@
 from typing import Dict, Optional
+import warnings
 
 from browserforge.fingerprints import Fingerprint
 from browserforge.injectors.utils import InjectFunction, _fingerprint, only_injectable_headers
@@ -15,6 +16,9 @@ async def AsyncNewContext(
     **context_options,
 ) -> AsyncBrowserContext:
     """
+    .. deprecated:: 1.3.0
+       The undetected_playwright injector is deprecated and will be removed in a future release.
+
     Injects an async_api Undetected-Playwright context with a Fingerprint.
 
     Parameters:
@@ -23,6 +27,11 @@ async def AsyncNewContext(
         fingerprint_options (Optional[Dict]): Options for the Fingerprint generator if `fingerprint` is not passed
         **context_options: Other options for the new context
     """
+    warnings.warn(
+        "The undetected_playwright injector is deprecated and will be removed in a future release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     fingerprint = _fingerprint(fingerprint, fingerprint_options)
     function = InjectFunction(fingerprint)
     # Build new context
@@ -52,6 +61,9 @@ def NewContext(
     **context_options,
 ) -> BrowserContext:
     """
+    .. deprecated:: 1.3.0
+       The undetected_playwright injector is deprecated and will be removed in a future release.
+
     Injects a sync_api Undetected-Playwright context with a Fingerprint.
 
     Parameters:
@@ -60,6 +72,11 @@ def NewContext(
         fingerprint_options (Optional[Dict]): Options for the Fingerprint generator if `fingerprint` is not passed
         **context_options: Other options for the new context
     """
+    warnings.warn(
+        "The undetected_playwright injector is deprecated and will be removed in a future release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     fingerprint = _fingerprint(fingerprint, fingerprint_options)
     function = InjectFunction(fingerprint)
     # Build new context

@@ -1,5 +1,6 @@
 import re
 from typing import Dict, Optional
+import warnings
 
 from pyppeteer.browser import Browser
 from pyppeteer.page import Page
@@ -14,6 +15,9 @@ async def NewPage(
     fingerprint_options: Optional[Dict] = None,
 ) -> Page:
     """
+    .. deprecated:: 1.3.0
+       The pyppeteer injector is deprecated and will be removed in a future release.
+
     Injects a Pyppeteer browser object with a Fingerprint.
 
     Parameters:
@@ -21,6 +25,11 @@ async def NewPage(
         fingerprint (Optional[Fingerprint]): The fingerprint to inject. If None, one will be generated
         fingerprint_options (Optional[Dict]): Options for the Fingerprint generator if `fingerprint` is not passed
     """
+    warnings.warn(
+        "The pyppeteer injector is deprecated and will be removed in a future release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     fingerprint = _fingerprint(fingerprint, fingerprint_options)
     function = InjectFunction(fingerprint)
     # create a new page
