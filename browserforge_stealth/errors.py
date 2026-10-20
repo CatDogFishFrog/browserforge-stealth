@@ -1,5 +1,5 @@
 """
-Custom exception hierarchy for realistic-browser-fingerprint.
+Custom exception hierarchy for browserforge-stealth.
 """
 
 

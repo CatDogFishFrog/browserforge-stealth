@@ -5,7 +5,6 @@ Normalization and sanitization routines for browser fingerprints and headers.
 from __future__ import annotations
 
 import copy
-import random
 from typing import Any
 
 from browserforge_stealth.models import (
@@ -101,9 +100,8 @@ def normalize_fingerprint_dict(
     os: OperatingSystem | str,
     locale: str,
     device_type: DeviceType | str = DeviceType.DESKTOP,
-    rng: random.Random | None = None,
 ) -> dict[str, Any]:
-    """Sanitizes raw browserforge sample dictionary.
+    """Sanitizes a raw sampled fingerprint dictionary.
 
     - Fixes languages and accept-language.
     - Bounds deviceMemory <= 8.
@@ -114,7 +112,6 @@ def normalize_fingerprint_dict(
     - Sets mockWebRTC = False, slim = False.
     - Sets initial headers.
     """
-    _coerce_os = coerce_os(os)
     dev_enum = coerce_device_type(device_type)
 
     fp = copy.deepcopy(raw)
@@ -173,5 +170,4 @@ def normalize_fingerprint_dict(
     fp["mockWebRTC"] = False
     fp["slim"] = False
     fp["headers"] = {"Accept-Language": accept_language}
-    _ = rng
     return fp

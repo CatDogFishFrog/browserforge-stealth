@@ -31,5 +31,5 @@ def test_cli_generate_file_and_inspect(tmp_path: Path, capsys: pytest.CaptureFix
     code = main(["inspect", str(out_file)])
     assert code == 0
     captured = capsys.readouterr()
-    assert "BrowserForge Fingerprint Summary" in captured.out
+    assert "BrowserForge-Stealth Fingerprint Summary" in captured.out
     assert "OS:       windows" in captured.out

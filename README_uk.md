@@ -1,224 +1,172 @@
 # BrowserForge-Stealth 🎭
 
-**Реалістичний, інтелектуальний генератор відбитків браузера (fingerprint) та інструментарій для антидетект-автоматизації на Python.**
+**Реалістичні, узгоджені відбитки браузера для Patchright, Playwright та антидетект-автоматизації.**
 
-Модернізований форк бібліотеки [`browserforge`](https://github.com/daijro/browserforge), створений спеціально для автоматизації без виявлення ботів, веб-скрапінгу та обходу систем перевірки (Cloudflare Turnstile, DataDome, Akamai, Kasada тощо) у зв'язці з **Patchright**, **Playwright** та іншими Chromium-сумісними бібліотеками.
+BrowserForge-Stealth — модернізований форк [`browserforge`](https://github.com/daijro/browserforge). Він зберігає
+байєсівські мережі Apify для відбитків і заголовків, але додає перевірку реалістичності, GREASE-бренди Chromium,
+мобільні профілі та підгонку під версію реального браузера. Це самостійний пакет з єдиною назвою для імпорту:
+`browserforge_stealth`. Старого API `browserforge` тут **немає**.
 
----
+## Навіщо
 
-## Чому саме BrowserForge-Stealth?
+Сирі байєсівські зразки регулярно містять комбінації, яких не буває на реальних пристроях:
 
-Стандартні генератори відбитків часто створюють синтетичні підписи, які миттєво викликають підозру сучасних систем захисту. Чистий `browserforge` та наївні байєсівські моделі регулярно генерують комбінації, які ніколи не трапляються у звичайних користувачів:
+* сліди Brave у `sec-ch-ua`, коли User-Agent заявляє Google Chrome;
+* `navigator.deviceMemory` 16/32 ГБ (Chrome обмежує значення 8);
+* програмні GPU (`SwiftShader`, `llvmpipe`, `Microsoft Basic Render Driver`);
+* дробовий `devicePixelRatio`, екрани менші за 1280x720 на десктопі, розбіжність ОС і платформи;
+* зафіксована версія Chrome, що не збігається з реальним бінарником браузера.
 
-1. **Витоки слідів Brave у Chrome:** до 15% зразків browserforge містили `"Brave"` у заголовках `sec-ch-ua` або описах плагінів, тоді як User-Agent заявляв звичайний Google Chrome.
-2. **Неможливі значення апаратних ресурсів:** `navigator.deviceMemory` зі значеннями 16 ГБ або 32 ГБ, хоча Google Chrome апаратно обмежує `deviceMemory` максимумом у 8 ГБ у всіх релізах.
-3. **Програмні/віртуальні відеокарти:** рендерери на зразок `SwiftShader`, `llvmpipe`, `Microsoft Basic Render Driver` або `Mesa`, які видають хмарний сервер чи віртуальну машину.
-4. **Спотворені параметри дисплея:** дробові `devicePixelRatio` (наприклад, `1.145829...`), доступна область екрана більша за сам екран, або роздільність менша за 1280×720 на десктопі.
-5. **Розбіжність версій рушія (Time Drift):** відбиток зафіксовано на застарілій версії Chrome (наприклад, 124), тоді як реальний браузер працює на сучасній версії 140+ чи 156+, що створює явні протиріччя між DOM API та заголовками.
-6. **Брудні мовні заголовки:** відсутність ваги у `Accept-Language` та наявність пробілів у `navigator.languages` (наприклад, `' uk-UA'`).
+BrowserForge-Stealth генерує зразок, санітизує його, відхиляє нереалістичні та підганяє результат під браузер, який
+справді запущено.
 
-**BrowserForge-Stealth усуває кожну з цих проблем.** Він поєднує статистичну байєсівську мережу з багаторівневою фільтрацією (rejection sampling), детерміністичною санітизацією, алгоритмом GREASE-брендів Chromium та динамічною підгонкою версії рушія.
+## Можливості
 
----
-
-## Ключові можливості
-
-* **100% зворотна сумісність:** повна заміна оригінального `browserforge`. Код `from browserforge.fingerprints import FingerprintGenerator, Fingerprint` працює без змін, але автоматично отримує реалістичні відбитки.
-* **Сучасний типізований API:** чистий інтерфейс у модулі `browserforge_stealth` (`generate_fingerprint`, `FingerprintGenerator`, `context_options`, `apply_to_context`).
-* **Багаторівнева фільтрація реалістичності:** автоматичне відкидання програмних GPU, неприпустимих значень пам'яті, нереалістичної кількості ядер для старих Intel iGPU та спотворених екранів.
-* **Алгоритм Chromium GREASE:** формує правдоподібні перестановки GREASE-брендів (`"Not A(Brand"`, `"Chromium"`, `"Google Chrome"`) та структуровані Client Hints (`sec-ch-ua`, `sec-ch-ua-platform`, `sec-ch-ua-mobile`).
-* **Динамічний Retargeting версії:** автоматично узгоджує User-Agent і заголовки із версією запущеного бінарника браузера без зміни сталого «заліза» (GPU, екран, пам'ять).
-* **Емуляція десктопних і мобільних пристроїв:** підтримка профілів для Windows, macOS, Linux, Android та iOS із відповідними сенсорними точками, розмірами вікон та заголовками.
-* **Готові адаптери для браузерів:** зручні помічники для Patchright і Playwright (`context_options`, `build_init_script`, `apply_to_context`, `apply_to_context_sync`).
-* **Постійність сесії:** повне збереження та завантаження через JSON чи словник (`to_dict`, `from_dict`, `to_json`, `from_json`) із версіонуванням схеми.
-* **Вбудований CLI:** консольна утиліта для генерації, інспекції та збереження профілів.
-
----
+* **Типізований контракт:** `Fingerprint`, `OperatingSystem`, `DeviceType`, `ScreenInfo`, `HardwareInfo`, `Viewport`.
+* **Rejection sampling:** `FingerprintGenerator(realistic=True)` повторює генерацію, доки всі правила не пройдено.
+* **GREASE-бренди Chromium** та чисті Client Hints (`sec-ch-ua`, `sec-ch-ua-mobile`, `sec-ch-ua-platform`).
+* **Десктоп і мобільні** (Windows, macOS, Linux, Android, iOS) з відповідними touch-точками та токенами UA.
+* **Retargeting:** UA, `appVersion`, `userAgentData` і заголовки підлаштовуються під версію рушія, залізо не змінюється.
+* **Збереження:** `to_dict()` / `from_dict()` / `to_json()` / `from_json()` з версією схеми.
+* **Інжекція через duck-typing:** працює з будь-яким контекстом, що має `add_init_script`.
+* **CLI:** `browserforge-stealth generate` / `inspect`.
 
 ## Встановлення
 
 ```bash
 pip install browserforge-stealth
+pip install "browserforge-stealth[orjson]"   # опційно: швидше завантаження JSON
 ```
 
-Опціональне прискорення JSON через `orjson`:
-
-```bash
-pip install browserforge-stealth[orjson]
-```
-
----
+Потрібен Python 3.11+. Patchright / Playwright **не є** залежностями — встановлюйте той, яким користуєтесь.
 
 ## Швидкий старт
 
-### 1. Генерація реалістичного відбитка
-
 ```python
-from browserforge_stealth import FingerprintGenerator, OperatingSystem, DeviceType
+from browserforge_stealth import FingerprintGenerator
 
-# Ініціалізація генератора з потрібними обмеженнями
-generator = FingerprintGenerator(
-    os=OperatingSystem.WINDOWS,
-    locale="uk-UA",
-    timezone_id="Europe/Kyiv",
-)
-
-# Генерація перевіреного реалістичного відбитка
+generator = FingerprintGenerator(os="windows", locale="uk-UA", timezone_id="Europe/Kyiv")
 fp = generator.generate()
 
-print("User-Agent:", fp.user_agent)
-print("Screen:", fp.screen_size, "DPR:", fp.device_scale_factor)
-print("Viewport:", fp.viewport)
-print("GPU:", fp.gpu_renderer)
-print("RAM:", fp.device_memory, "GB | Cores:", fp.hardware_concurrency)
+print(fp.user_agent)
+print(fp.screen_size, fp.device_scale_factor, fp.viewport)
+print(fp.gpu_renderer, fp.device_memory, fp.hardware_concurrency)
 ```
 
-Або через функцію швидкого доступу:
+Коротка форма:
 
 ```python
 from browserforge_stealth import generate_fingerprint
 
-fp = generate_fingerprint(os="windows", locale="uk-UA")
+fp = generate_fingerprint(os="macos", locale="en-US")
 ```
 
----
-
-### 2. Використання з Playwright або Patchright (Async)
+### Async Playwright / Patchright
 
 ```python
 import asyncio
-from patchright.async_api import async_playwright
-# або: from playwright.async_api import async_playwright
+from patchright.async_api import async_playwright   # або: from playwright.async_api import async_playwright
 from browserforge_stealth import generate_fingerprint
 
-async def main():
-    # 1. Створюємо або завантажуємо відбиток
+
+async def main() -> None:
     fp = generate_fingerprint(os="windows", locale="en-US", timezone_id="Europe/Kyiv")
-
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
-        
-        # 2. Отримуємо параметри контексту під реальну версію браузера
-        browser_version = browser.version  # наприклад, "156.0.8078.4"
-        options = fp.context_options(browser_version=browser_version)
-        
-        # 3. Створюємо контекст і впроваджуємо скрипт підміни
-        context = await browser.new_context(**options)
-        await fp.apply(context, browser_version=browser_version)
-
+        browser = await p.chromium.launch()
+        context = await browser.new_context(**fp.context_options(browser.version))
+        await fp.apply(context, browser_version=browser.version)
         page = await context.new_page()
-        await page.goto("https://bot.sannysoft.com")
-        await asyncio.sleep(5)
+        await page.goto("https://example.com")
         await browser.close()
 
-if __name__ == "__main__":
-    asyncio.run(main())
+
+asyncio.run(main())
 ```
 
----
-
-### 3. Використання з Playwright або Patchright (Sync)
+### Sync
 
 ```python
-from patchright.sync_api import sync_playwright
-from browserforge_stealth import generate_fingerprint, apply_to_context_sync
+from playwright.sync_api import sync_playwright
+from browserforge_stealth import apply_to_context_sync, generate_fingerprint
 
-fp = generate_fingerprint(os="macos", locale="en-US")
-
+fp = generate_fingerprint(os="linux")
 with sync_playwright() as p:
     browser = p.chromium.launch()
-    options = fp.context_options(browser_version=browser.version)
-    context = browser.new_context(**options)
+    context = browser.new_context(**fp.context_options(browser.version))
     apply_to_context_sync(context, fp, browser_version=browser.version)
-    
-    page = context.new_page()
-    page.goto("https://nowsecure.nl")
-    browser.close()
 ```
 
----
-
-### 4. Зворотна сумісність із існуючим кодом `browserforge`
-
-Якщо ваш проєкт уже використовує `browserforge`, переписувати імпорти не потрібно:
+### Мобільні відбитки
 
 ```python
-# Старий код продовжує працювати на 100%, але тепер отримує реалістичні відбитки!
-from browserforge.fingerprints import FingerprintGenerator, Screen
-from browserforge.injectors.utils import InjectFunction
-from browserforge.headers import HeaderGenerator
-
-generator = FingerprintGenerator(browser="chrome", os="windows")
-fingerprint = generator.generate()
-
-# Метод .dumps() повністю підтримується:
-js_script = InjectFunction(fingerprint)
+fp = generate_fingerprint(device_type="mobile", os="android", locale="uk-UA")
+print(fp.user_agent)                  # містить "Mobile" та "Android"
+print(fp.navigator["maxTouchPoints"])  # >= 5
 ```
 
----
-
-### 5. Мобільні відбитки (Android та iOS)
+### Збереження профілю акаунта
 
 ```python
-from browserforge_stealth import generate_fingerprint, DeviceType, OperatingSystem
+from pathlib import Path
 
-mobile_fp = generate_fingerprint(
-    device_type=DeviceType.MOBILE,
-    os=OperatingSystem.ANDROID,
-    locale="uk-UA",
-)
+from browserforge_stealth import Fingerprint
 
-print(mobile_fp.user_agent)       # Містить 'Mobile' та 'Android'
-print(mobile_fp.viewport)         # Мобільний viewport (наприклад, 390x844)
-print(mobile_fp.raw_data["navigator"]["maxTouchPoints"])  # >= 5
+Path("profile.json").write_text(fp.to_json(indent=2), encoding="utf-8")
+restored = Fingerprint.from_json(Path("profile.json").read_text(encoding="utf-8"))
+options = restored.context_options(browser_version="156.0.8078.4")   # підгонка під реальний рушій
 ```
 
----
+## Об'єкт `Fingerprint`
 
-### 6. Збереження та відновлення профілів акаунтів
+| Член | Опис |
+| --- | --- |
+| `schema_version`, `created_at` | Метадані серіалізації (час у UTC). |
+| `device_type`, `os`, `locale`, `timezone_id`, `viewport` | Типізовані метадані контексту. |
+| `raw_data` | Корисне навантаження для інжекції: `navigator`, `screen`, `headers`, `videoCard`, кодеки, батарея. |
+| `navigator`, `screen`, `headers`, `video_card` | Секції навантаження (звичайні словники, лише читання). |
+| `user_agent`, `screen_size`, `device_scale_factor`, `gpu_renderer`, `hardware_concurrency`, `device_memory` | Типізовані геттери. |
+| `screen_info`, `hardware_info` | Датакласи `ScreenInfo` / `HardwareInfo`. |
+| `context_options(version)`, `init_script(version)` | Параметри контексту Playwright / JS init-скрипт. |
+| `apply(context, version)`, `apply_sync(context, version)` | Інжекція через `add_init_script`. |
 
-Щоб сайт бачив ваш акаунт завжди з одного й того ж комп'ютера:
+## Правила реалістичності
+
+Десктоп: без програмних GPU, без сторонніх браузерів в UA, платформа відповідає ОС, DPR із дозволеного набору для ОС,
+екран не менший за 1280x720, `deviceMemory <= 8`, не більше 8 потоків для старих Intel iGPU. Мобільні: лише
+Android/iOS, коректний мобільний DPR, `maxTouchPoints >= 5`, токени `Mobile` та `Android`/`iPhone`,
+`sec-ch-ua-mobile: ?1`. Перевірити будь-яке навантаження: `realism_issues(fp, os, device_type)`.
+
+## Лише заголовки
 
 ```python
-import json
-from browserforge_stealth import generate_fingerprint, Fingerprint
+from browserforge_stealth.headers import HeaderGenerator
 
-# --- День 1: Створення та збереження ---
-fp = generate_fingerprint(os="windows", locale="uk-UA")
-with open("account_profile.json", "w", encoding="utf-8") as f:
-    f.write(fp.to_json(indent=2))
-
-# --- День 2: Відновлення профілю ---
-with open("account_profile.json", "r", encoding="utf-8") as f:
-    saved_fp = Fingerprint.from_json(f.read())
-
-# Динамічний retargeting автоматично узгодить UA з поточною версією рушія!
-context_opts = saved_fp.context_options(browser_version="156.0.8078.4")
+headers = HeaderGenerator().generate(browser="chrome", os="windows", device="desktop", locale="en-US")
 ```
 
----
+## Низькорівнева вибірка
 
-## Консольна утиліта (CLI)
+`browserforge_stealth.sampler.FingerprintSampler` бере сирі зразки з байєсівської мережі (з опційними
+`ScreenConstraints`) без фільтрації реалістичності. Якщо сирі дані не потрібні — користуйтесь `FingerprintGenerator`.
 
-### Генерація відбитка
+## CLI
+
 ```bash
-# Коротке зведення у термінал
 browserforge-stealth generate --os windows --locale uk-UA
-
-# Вивід у форматі JSON
-browserforge-stealth generate --os macos --json
-
-# Збереження у файл
-browserforge-stealth generate --os windows --output profile.json
-```
-
-### Інспекція збереженого файлу відбитка
-```bash
+browserforge-stealth generate --device mobile --os android --json
+browserforge-stealth generate --os macos --output profile.json
 browserforge-stealth inspect profile.json
 ```
 
----
+## Розробка
 
-## Ліцензія
+```bash
+pip install -e ".[dev]"
+pytest && ruff check . && mypy
+```
 
-Apache-2.0. Дивіться файл [LICENSE](LICENSE) для деталей.
+## Подяки та ліцензія
+
+Основа — [daijro/browserforge](https://github.com/daijro/browserforge) та
+[fingerprint-suite](https://github.com/apify/fingerprint-suite) від Apify (вбудований `utils.js`, Apache-2.0).
+Ліцензія Apache-2.0, див. [LICENSE](LICENSE).

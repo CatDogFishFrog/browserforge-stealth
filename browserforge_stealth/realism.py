@@ -10,6 +10,7 @@ from typing import Any
 
 from browserforge_stealth.models import (
     DeviceType,
+    Fingerprint,
     OperatingSystem,
     coerce_device_type,
     coerce_os,
@@ -52,7 +53,7 @@ _FOREIGN_BROWSER_UA_RE = re.compile(r"Edg/|OPR/|Brave|Firefox|YaBrowser", re.IGN
 
 
 def realism_issues(
-    fingerprint: Any,
+    fingerprint: Fingerprint | Mapping[str, Any],
     os: OperatingSystem | str,
     device_type: DeviceType | str = DeviceType.DESKTOP,
 ) -> list[str]:
@@ -60,14 +61,7 @@ def realism_issues(
     os_enum = coerce_os(os)
     dev_enum = coerce_device_type(device_type)
 
-    if hasattr(fingerprint, "raw_data") and isinstance(fingerprint.raw_data, Mapping):
-        fp = fingerprint.raw_data
-    elif hasattr(fingerprint, "fingerprint") and isinstance(fingerprint.fingerprint, Mapping):
-        fp = fingerprint.fingerprint
-    elif isinstance(fingerprint, Mapping):
-        fp = fingerprint
-    else:
-        return ["Invalid fingerprint object (not a Mapping or Fingerprint)"]
+    fp: Mapping[str, Any] = fingerprint.raw_data if isinstance(fingerprint, Fingerprint) else fingerprint
 
     issues: list[str] = []
     navigator: Mapping[str, Any] = fp.get("navigator") or {}
@@ -109,9 +103,7 @@ def realism_issues(
         expected_uach_platform = _OS_UACH_PLATFORM.get(os_enum)
         uad_platform = uad.get("platform")
         if expected_uach_platform and uad_platform != expected_uach_platform:
-            issues.append(
-                f"userAgentData.platform={uad_platform!r} does not match OS {os_enum.value}"
-            )
+            issues.append(f"userAgentData.platform={uad_platform!r} does not match OS {os_enum.value}")
 
         # DPR check
         dpr = screen.get("devicePixelRatio")
@@ -176,7 +168,7 @@ def realism_issues(
 
 
 def derive_viewport(
-    fingerprint: Any,
+    fingerprint: Fingerprint | Mapping[str, Any],
     os: OperatingSystem | str,
     device_type: DeviceType | str = DeviceType.DESKTOP,
 ) -> tuple[int, int]:
@@ -184,14 +176,7 @@ def derive_viewport(
     os_enum = coerce_os(os)
     dev_enum = coerce_device_type(device_type)
 
-    if hasattr(fingerprint, "raw_data") and isinstance(fingerprint.raw_data, Mapping):
-        fp = fingerprint.raw_data
-    elif hasattr(fingerprint, "fingerprint") and isinstance(fingerprint.fingerprint, Mapping):
-        fp = fingerprint.fingerprint
-    elif isinstance(fingerprint, Mapping):
-        fp = fingerprint
-    else:
-        fp = {}
+    fp: Mapping[str, Any] = fingerprint.raw_data if isinstance(fingerprint, Fingerprint) else fingerprint
 
     screen: Mapping[str, Any] = fp.get("screen") or {}
     screen_w = int(screen.get("width") or 0) or 10_000

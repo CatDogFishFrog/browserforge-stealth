@@ -5,23 +5,102 @@ Context options and init-script injection for Patchright and Playwright.
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
-from typing import Any, cast
-
-from browserforge.injectors.utils import InjectFunction
+import lzma
+from functools import cache
+from pathlib import Path
+from random import randrange
+from typing import Any
 
 from browserforge_stealth.models import DeviceType, Fingerprint, coerce_device_type
 from browserforge_stealth.retarget import retarget
 
+_UTILS_JS = Path(__file__).parent / "assets" / "utils.js.xz"
 
-class _Dumpable:
-    """Lightweight adapter providing `.dumps()` required by InjectFunction."""
+_INIT_TEMPLATE = """
+(() => {
+    __UTILS__
 
-    def __init__(self, data: Mapping[str, Any]) -> None:
-        self._json = json.dumps(data, ensure_ascii=False)
+    const fp = __FINGERPRINT__;
+    const {
+        battery,
+        navigator: { userAgentData, webdriver, ...navigatorProps },
+        screen: allScreenProps,
+        videoCard,
+        audioCodecs,
+        videoCodecs,
+        mockWebRTC,
+    } = fp;
 
-    def dumps(self) -> str:
-        return self._json
+    slim = fp.slim;
+
+    const historyLength = __HISTORY_LENGTH__;
+
+    const {
+        outerHeight,
+        outerWidth,
+        devicePixelRatio,
+        innerWidth,
+        innerHeight,
+        screenX,
+        pageXOffset,
+        pageYOffset,
+        clientWidth,
+        clientHeight,
+        hasHDR,
+        ...newScreen
+    } = allScreenProps;
+
+    const windowScreenProps = {
+        innerHeight,
+        outerHeight,
+        outerWidth,
+        innerWidth,
+        screenX,
+        pageXOffset,
+        pageYOffset,
+        devicePixelRatio,
+    };
+
+    const documentScreenProps = { clientHeight, clientWidth };
+
+    runHeadlessFixes();
+    if (mockWebRTC) blockWebRTC();
+    if (slim) {
+        window['slim'] = true;
+    }
+    overrideIntlAPI(navigatorProps.language);
+    overrideStatic();
+    if (userAgentData) {
+        overrideUserAgentData(userAgentData);
+    }
+    if (window.navigator.webdriver) {
+        navigatorProps.webdriver = false;
+    }
+    overrideInstancePrototype(window.navigator, navigatorProps);
+    overrideInstancePrototype(window.screen, newScreen);
+    overrideWindowDimensionsProps(windowScreenProps);
+    overrideDocumentDimensionsProps(documentScreenProps);
+    overrideInstancePrototype(window.history, { length: historyLength });
+    overrideWebGl(videoCard);
+    overrideCodecs(audioCodecs, videoCodecs);
+    overrideBattery(battery);
+})()
+"""
+
+
+@cache
+def _utils_js() -> str:
+    """Returns the bundled Apify ``utils.js`` helper library (decompressed once)."""
+    with lzma.open(_UTILS_JS, "rt", encoding="utf-8") as handle:
+        return handle.read()
+
+
+def _render_init_script(data: dict[str, Any]) -> str:
+    return (
+        _INIT_TEMPLATE.replace("__FINGERPRINT__", json.dumps(data, ensure_ascii=False))
+        .replace("__HISTORY_LENGTH__", str(randrange(1, 6)))
+        .replace("__UTILS__", _utils_js())
+    )
 
 
 def context_options(fingerprint: Fingerprint, browser_version: str | None = None) -> dict[str, Any]:
@@ -61,7 +140,7 @@ def context_options(fingerprint: Fingerprint, browser_version: str | None = None
 def build_init_script(fingerprint: Fingerprint, browser_version: str | None = None) -> str:
     """Builds JS init script overriding browser APIs before page scripts execute."""
     retargeted = retarget(fingerprint, browser_version)
-    return InjectFunction(cast(Any, _Dumpable(retargeted)))
+    return _render_init_script(retargeted)
 
 
 async def apply_to_context(

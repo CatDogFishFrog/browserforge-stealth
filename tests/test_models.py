@@ -6,12 +6,14 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
 from browserforge_stealth.models import (
     DeviceType,
     Fingerprint,
     HardwareInfo,
     OperatingSystem,
     ScreenInfo,
+    Viewport,
 )
 
 
@@ -119,27 +121,45 @@ def test_fingerprint_properties() -> None:
     assert hw_info.gpu_renderer == fp.gpu_renderer
 
 
-def test_dict_like_access() -> None:
+def test_raw_payload_sections() -> None:
     raw = _sample_raw_data()
     fp = Fingerprint(raw_data=raw)
 
-    assert fp["navigator"]["platform"] == "Win32"
-    assert fp.get("screen")["width"] == 1920
-    assert fp.get("nonexistent", "fallback") == "fallback"
-    assert "navigator" in fp
-    assert "missing_key" not in fp
-    assert len(fp) == len(raw)
-    assert list(fp.keys()) == list(raw.keys())
-    assert "screen" in list(iter(fp))
-    assert len(list(fp.items())) == len(raw.items())
+    assert fp.navigator["platform"] == "Win32"
+    assert fp.screen["width"] == 1920
+    assert fp.screen["devicePixelRatio"] == 1.25
+    assert "RTX 3070" in fp.video_card["renderer"]
+    assert fp.headers == raw["headers"]
 
 
-def test_injector_attribute_compatibility() -> None:
-    raw = _sample_raw_data()
-    fp = Fingerprint(raw_data=raw)
+def test_empty_payload_sections_are_empty_dicts() -> None:
+    fp = Fingerprint()
 
-    assert fp.navigator.platform == "Win32"
-    assert fp.screen.width == 1920
-    assert fp.screen.devicePixelRatio == 1.25
-    assert "RTX 3070" in fp.videoCard.renderer
-    assert fp.dumps().startswith("{")
+    assert fp.navigator == {}
+    assert fp.screen == {}
+    assert fp.headers == {}
+    assert fp.video_card == {}
+    assert fp.user_agent == ""
+
+
+def test_metadata_is_coerced_in_post_init() -> None:
+    fp = Fingerprint(
+        device_type="mobile",
+        os="android",
+        created_at="2026-01-02T03:04:05",
+        viewport=Viewport(390, 760),
+    )
+
+    assert fp.device_type is DeviceType.MOBILE
+    assert fp.os is OperatingSystem.ANDROID
+    assert fp.created_at.tzinfo is not None
+    assert fp.viewport == (390, 760)
+
+
+def test_legacy_dict_protocol_is_gone() -> None:
+    fp = Fingerprint(raw_data=_sample_raw_data())
+
+    assert not hasattr(fp, "dumps")
+    assert not hasattr(fp, "asdict")
+    with pytest.raises(TypeError):
+        fp["navigator"]  # type: ignore[index]

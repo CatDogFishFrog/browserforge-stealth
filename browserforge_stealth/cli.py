@@ -24,7 +24,7 @@ def _format_summary(fp: Fingerprint) -> str:
 
     lines = [
         "============================================================",
-        "BrowserForge Fingerprint Summary",
+        "BrowserForge-Stealth Fingerprint Summary",
         "============================================================",
         f"OS:       {os_name}",
         f"Device:   {dev_name}",

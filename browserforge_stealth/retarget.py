@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import copy
 import re
-from collections.abc import Mapping
 from typing import Any
 
 from browserforge_stealth.models import (
     DeviceType,
+    Fingerprint,
     OperatingSystem,
     coerce_device_type,
     coerce_os,
@@ -86,50 +86,16 @@ def build_user_agent(
     return f"Mozilla/5.0 ({token}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{major}.0.0.0 Safari/537.36"
 
 
-def retarget(fp: Any, browser_version: str | None) -> dict[str, Any]:
-    """Returns a retargeted copy of fingerprint dictionary matching real running engine version.
+def retarget(fp: Fingerprint, browser_version: str | None) -> dict[str, Any]:
+    """Returns a retargeted copy of the fingerprint payload matching the real running engine version.
 
     Dynamically updates Chrome major/full version in UA, appVersion, userAgentData
     brands/fullVersionList, and Client Hints without mutating stored hardware.
     """
-    if hasattr(fp, "raw_data") and isinstance(fp.raw_data, dict):
-        raw = copy.deepcopy(fp.raw_data)
-        os_val = getattr(fp, "os", OperatingSystem.WINDOWS)
-        dev_val = getattr(fp, "device_type", DeviceType.DESKTOP)
-        locale = getattr(fp, "locale", "en-US")
-    elif hasattr(fp, "fingerprint") and isinstance(fp.fingerprint, Mapping):
-        raw = copy.deepcopy(dict(fp.fingerprint))
-        os_val = getattr(fp, "claimed_os", getattr(fp, "os", OperatingSystem.WINDOWS))
-        dev_val = getattr(fp, "device_type", DeviceType.DESKTOP)
-        locale = getattr(fp, "locale", "en-US")
-    elif isinstance(fp, Mapping):
-        if "raw_data" in fp and isinstance(fp["raw_data"], dict):
-            raw = copy.deepcopy(fp["raw_data"])
-        else:
-            raw = copy.deepcopy(dict(fp))
-        os_val = fp.get("claimed_os", fp.get("os"))
-        if not os_val:
-            nav = raw.get("navigator") or {}
-            plat = str(nav.get("platform", "")).lower()
-            uad_plat = str((nav.get("userAgentData") or {}).get("platform") or "").lower()
-            if "mac" in plat or "mac" in uad_plat:
-                os_val = OperatingSystem.MACOS
-            elif "linux" in plat or "linux" in uad_plat:
-                os_val = OperatingSystem.LINUX
-            elif "win" in plat or "win" in uad_plat:
-                os_val = OperatingSystem.WINDOWS
-            else:
-                os_val = OperatingSystem.WINDOWS
-        dev_val = fp.get("device_type", DeviceType.DESKTOP)
-        locale = fp.get("locale") or (raw.get("navigator") or {}).get("language") or "en-US"
-    else:
-        raw = copy.deepcopy(dict(fp))
-        os_val = OperatingSystem.WINDOWS
-        dev_val = DeviceType.DESKTOP
-        locale = "en-US"
+    raw = copy.deepcopy(fp.raw_data)
+    os_val, dev_val, locale = fp.os, fp.device_type, fp.locale
 
-    os_enum = coerce_os(os_val) if os_val else OperatingSystem.WINDOWS
-    dev_enum = coerce_device_type(dev_val) if dev_val else DeviceType.DESKTOP
+    os_enum, dev_enum = os_val, dev_val
 
     navigator = raw.setdefault("navigator", {})
     fallback_ua = str(navigator.get("userAgent", ""))

@@ -4,17 +4,8 @@ Modern, stealth-aware fingerprint generator for browser automation.
 
 from __future__ import annotations
 
-import json
-import random
 import sys
 from typing import Any
-
-from browserforge.fingerprints.generator import (
-    FingerprintGenerator as ClassicFingerprintGenerator,
-)
-from browserforge.fingerprints.generator import (
-    Screen,
-)
 
 from browserforge_stealth.errors import GenerationError
 from browserforge_stealth.models import (
@@ -26,6 +17,7 @@ from browserforge_stealth.models import (
 )
 from browserforge_stealth.normalization import normalize_fingerprint_dict
 from browserforge_stealth.realism import derive_viewport, realism_issues
+from browserforge_stealth.sampler import FingerprintSampler, ScreenConstraints
 
 
 def _default_os(device_type: DeviceType) -> OperatingSystem:
@@ -51,7 +43,6 @@ class FingerprintGenerator:
         timezone_id: str | None = None,
         realistic: bool = True,
         max_attempts: int = 60,
-        rng: random.Random | None = None,
         **kwargs: Any,
     ) -> None:
         self.os = coerce_os(os) if os is not None else None
@@ -60,14 +51,13 @@ class FingerprintGenerator:
         self.timezone_id = str(timezone_id) if timezone_id is not None else None
         self.realistic = realistic
         self.max_attempts = max_attempts
-        self.rng = rng or random.Random()
         self.extra_kwargs = kwargs
-        self._classic_generator: ClassicFingerprintGenerator | None = None
+        self._sampler: FingerprintSampler | None = None
 
-    def _get_classic_generator(self) -> ClassicFingerprintGenerator:
-        if self._classic_generator is None:
-            self._classic_generator = ClassicFingerprintGenerator(realistic=False, **self.extra_kwargs)
-        return self._classic_generator
+    def _get_sampler(self) -> FingerprintSampler:
+        if self._sampler is None:
+            self._sampler = FingerprintSampler()
+        return self._sampler
 
     def generate(
         self,
@@ -88,10 +78,12 @@ class FingerprintGenerator:
         effective_max_attempts = max_attempts if max_attempts is not None else self.max_attempts
 
         screen_constraint = (
-            Screen(min_width=1280, min_height=720) if effective_device == DeviceType.DESKTOP else None
+            ScreenConstraints(min_width=1280, min_height=720)
+            if effective_device == DeviceType.DESKTOP
+            else None
         )
 
-        classic_gen = self._get_classic_generator()
+        sampler = self._get_sampler()
         rejected_issues: list[str] = []
         last_normalized: dict[str, Any] | None = None
 
@@ -102,18 +94,15 @@ class FingerprintGenerator:
                 "device": effective_device.value,
                 "locale": (effective_locale,),
                 "screen": screen_constraint,
-                "realistic": False,
                 **self.extra_kwargs,
                 **kwargs,
             }
-            sample_obj = classic_gen.generate(**gen_kwargs)
-            raw = json.loads(sample_obj.dumps())
+            raw = sampler.sample(**gen_kwargs)
             normalized = normalize_fingerprint_dict(
                 raw,
                 os=effective_os,
                 locale=effective_locale,
                 device_type=effective_device,
-                rng=self.rng,
             )
             last_normalized = normalized
 
@@ -158,7 +147,6 @@ def generate_fingerprint(
     timezone_id: str | None = None,
     realistic: bool = True,
     max_attempts: int = 60,
-    rng: random.Random | None = None,
     **kwargs: Any,
 ) -> Fingerprint:
     """Convenience function to generate a realistic Fingerprint."""
@@ -169,7 +157,6 @@ def generate_fingerprint(
         timezone_id=timezone_id,
         realistic=realistic,
         max_attempts=max_attempts,
-        rng=rng,
         **kwargs,
     )
     return generator.generate()

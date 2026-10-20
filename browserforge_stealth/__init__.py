@@ -44,18 +44,21 @@ from browserforge_stealth.retarget import (
     parse_browser_version,
     retarget,
 )
+from browserforge_stealth.sampler import FingerprintSampler, ScreenConstraints
 
-__version__ = "1.3.0"
+__version__ = "2.0.0"
 
 __all__ = [
     "DeviceType",
     "Fingerprint",
     "FingerprintError",
     "FingerprintGenerator",
+    "FingerprintSampler",
     "GenerationError",
     "HardwareInfo",
     "OperatingSystem",
     "RealismError",
+    "ScreenConstraints",
     "ScreenInfo",
     "SerializationError",
     "Viewport",
