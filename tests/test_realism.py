@@ -4,6 +4,9 @@ Tests for realism rules (desktop and mobile).
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 import pytest
 from browserforge_stealth.models import DeviceType, OperatingSystem
 from browserforge_stealth.realism import derive_viewport, realism_issues
@@ -62,7 +65,7 @@ def test_good_desktop_fingerprint_passes() -> None:
         ),
     ],
 )
-def test_unrealistic_desktop_samples_are_rejected(mutation: any, fragment: str) -> None:
+def test_unrealistic_desktop_samples_are_rejected(mutation: Callable[[dict[str, Any]], Any], fragment: str) -> None:
     fp = good_windows_fingerprint()
     mutation(fp)
     issues = realism_issues(fp, OperatingSystem.WINDOWS, DeviceType.DESKTOP)

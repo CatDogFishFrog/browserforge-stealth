@@ -113,18 +113,28 @@ class Fingerprint:
     viewport: tuple[int, int] = (1920, 1080)
     raw_data: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self) -> None:
-        self.schema_version = int(self.schema_version)
-        self.created_at = _parse_datetime(self.created_at)
-        self.device_type = coerce_device_type(self.device_type)
-        self.os = coerce_os(self.os)
-        self.locale = str(self.locale)
-        if self.timezone_id is not None:
-            self.timezone_id = str(self.timezone_id)
-        viewport: Any = self.viewport
-        if isinstance(viewport, Viewport):
-            viewport = viewport.to_tuple()
-        self.viewport = (int(viewport[0]), int(viewport[1]))
+    def __init__(
+        self,
+        schema_version: int = 1,
+        created_at: datetime | str | None = None,
+        device_type: DeviceType | str = DeviceType.DESKTOP,
+        os: OperatingSystem | str = OperatingSystem.WINDOWS,
+        locale: str = "en-US",
+        timezone_id: str | None = None,
+        viewport: tuple[int, int] | Viewport = (1920, 1080),
+        raw_data: dict[str, Any] | None = None,
+    ) -> None:
+        self.schema_version = int(schema_version)
+        self.created_at = _parse_datetime(created_at)
+        self.device_type = coerce_device_type(device_type)
+        self.os = coerce_os(os)
+        self.locale = str(locale)
+        self.timezone_id = str(timezone_id) if timezone_id is not None else None
+        vp: Any = viewport
+        if isinstance(vp, Viewport):
+            vp = vp.to_tuple()
+        self.viewport = (int(vp[0]), int(vp[1]))
+        self.raw_data = raw_data if raw_data is not None else {}
 
     # --- raw payload sections -------------------------------------------------------------------
 

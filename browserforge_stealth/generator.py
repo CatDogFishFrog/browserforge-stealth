@@ -37,6 +37,7 @@ class FingerprintGenerator:
     def __init__(
         self,
         *,
+        screen: ScreenConstraints | None = None,
         os: OperatingSystem | str | None = None,
         device_type: DeviceType | str = DeviceType.DESKTOP,
         locale: str = "en-US",
@@ -45,6 +46,7 @@ class FingerprintGenerator:
         max_attempts: int = 60,
         **kwargs: Any,
     ) -> None:
+        self.screen = screen
         self.os = coerce_os(os) if os is not None else None
         self.device_type = coerce_device_type(device_type)
         self.locale = str(locale)
@@ -62,6 +64,7 @@ class FingerprintGenerator:
     def generate(
         self,
         *,
+        screen: ScreenConstraints | None = None,
         os: OperatingSystem | str | None = None,
         device_type: DeviceType | str | None = None,
         locale: str | None = None,
@@ -77,11 +80,9 @@ class FingerprintGenerator:
         effective_realistic = realistic if realistic is not None else self.realistic
         effective_max_attempts = max_attempts if max_attempts is not None else self.max_attempts
 
-        screen_constraint = (
-            ScreenConstraints(min_width=1280, min_height=720)
-            if effective_device == DeviceType.DESKTOP
-            else None
-        )
+        effective_screen = screen if screen is not None else self.screen
+        if effective_screen is None and effective_device == DeviceType.DESKTOP:
+            effective_screen = ScreenConstraints(min_width=1280, min_height=720)
 
         sampler = self._get_sampler()
         rejected_issues: list[str] = []
@@ -93,7 +94,7 @@ class FingerprintGenerator:
                 "os": (effective_os.value,),
                 "device": effective_device.value,
                 "locale": (effective_locale,),
-                "screen": screen_constraint,
+                "screen": effective_screen,
                 **self.extra_kwargs,
                 **kwargs,
             }
@@ -141,6 +142,7 @@ class FingerprintGenerator:
 
 def generate_fingerprint(
     *,
+    screen: ScreenConstraints | None = None,
     os: OperatingSystem | str | None = None,
     device_type: DeviceType | str = DeviceType.DESKTOP,
     locale: str = "en-US",
@@ -151,6 +153,7 @@ def generate_fingerprint(
 ) -> Fingerprint:
     """Convenience function to generate a realistic Fingerprint."""
     generator = FingerprintGenerator(
+        screen=screen,
         os=os,
         device_type=device_type,
         locale=locale,

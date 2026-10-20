@@ -14,6 +14,10 @@ from browserforge_stealth.generator import (
     FingerprintGenerator,
     generate_fingerprint,
 )
+from browserforge_stealth.headers import (
+    Browser,
+    HeaderGenerator,
+)
 from browserforge_stealth.injection import (
     apply_to_context,
     apply_to_context_sync,
@@ -49,6 +53,7 @@ from browserforge_stealth.sampler import FingerprintSampler, ScreenConstraints
 __version__ = "2.0.0"
 
 __all__ = [
+    "Browser",
     "DeviceType",
     "Fingerprint",
     "FingerprintError",
@@ -56,6 +61,7 @@ __all__ = [
     "FingerprintSampler",
     "GenerationError",
     "HardwareInfo",
+    "HeaderGenerator",
     "OperatingSystem",
     "RealismError",
     "ScreenConstraints",

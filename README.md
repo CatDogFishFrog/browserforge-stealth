@@ -1,6 +1,6 @@
 # BrowserForge-Stealth
 
-**Realistic, self-consistent browser fingerprints for Patchright, Playwright and anti-detect automation.**
+**Realistic, self-consistent browser fingerprints and headers for Patchright, Playwright and anti-detect automation.**
 
 BrowserForge-Stealth is a modernized fork of [`browserforge`](https://github.com/daijro/browserforge). It keeps the
 Apify Bayesian fingerprint/header networks, but adds realism validation, Chromium GREASE brands, mobile profiles and
@@ -29,13 +29,14 @@ that actually runs.
 * **Retargeting:** UA, `appVersion`, `userAgentData` and headers follow the real engine version; hardware stays fixed.
 * **Persistence:** `to_dict()` / `from_dict()` / `to_json()` / `from_json()` with a schema version.
 * **Duck-typed injection:** works with any context exposing `add_init_script` (Patchright, Playwright).
+* **Header-only mode:** `HeaderGenerator` can be used independently for any HTTP client.
 * **CLI:** `browserforge-stealth generate` / `inspect`.
 
 ## Installation
 
 ```bash
-pip install browserforge-stealth
-pip install "browserforge-stealth[orjson]"   # optional faster JSON loading
+pip install git+https://github.com/CatDogFishFrog/browserforge-stealth.git
+pip install "git+https://github.com/CatDogFishFrog/browserforge-stealth.git#egg=browserforge-stealth[orjson]"  # optional faster JSON
 ```
 
 Python 3.11+ is required. Patchright / Playwright are **not** dependencies; install the one you use.
@@ -107,11 +108,23 @@ print(fp.navigator["maxTouchPoints"])  # >= 5
 ### Saving a profile
 
 ```python
+from pathlib import Path
 from browserforge_stealth import Fingerprint
 
 Path("profile.json").write_text(fp.to_json(indent=2), encoding="utf-8")
 restored = Fingerprint.from_json(Path("profile.json").read_text(encoding="utf-8"))
 options = restored.context_options(browser_version="156.0.8078.4")   # retargeted to the real engine
+```
+
+### Screen constraints
+
+Constrain the minimum/maximum screen width and height:
+
+```python
+from browserforge_stealth import FingerprintGenerator, ScreenConstraints
+
+screen = ScreenConstraints(min_width=1600, min_height=900)
+fp = FingerprintGenerator(os="windows", screen=screen).generate()
 ```
 
 ## The `Fingerprint` object
@@ -126,6 +139,7 @@ options = restored.context_options(browser_version="156.0.8078.4")   # retargete
 | `screen_info`, `hardware_info` | `ScreenInfo` / `HardwareInfo` dataclasses. |
 | `context_options(version)`, `init_script(version)` | Playwright context kwargs / JS init script. |
 | `apply(context, version)`, `apply_sync(context, version)` | Inject through `add_init_script`. |
+| `to_dict()`, `from_dict()`, `to_json()`, `from_json()` | Serialization / deserialization. |
 
 ## Realism rules
 
@@ -139,11 +153,11 @@ DPR, `maxTouchPoints >= 5`, `Mobile` plus `Android`/`iPhone` tokens, `sec-ch-ua-
 `browserforge-stealth` replaces `browserforge`; it is not a drop-in alias. The import name is `browserforge_stealth`,
 and the old API (`browserforge.*`) no longer exists.
 
-1. Swap the package. The two use different import names, so they do not conflict, but you should remove the old one:
+1. Swap the package:
 
    ```bash
    pip uninstall browserforge
-   pip install browserforge-stealth
+   pip install git+https://github.com/CatDogFishFrog/browserforge-stealth.git
    ```
 
 2. Update imports and calls:
@@ -152,7 +166,7 @@ and the old API (`browserforge.*`) no longer exists.
    | --- | --- |
    | `from browserforge.fingerprints import FingerprintGenerator` | `from browserforge_stealth import FingerprintGenerator` |
    | `from browserforge.fingerprints import Screen` | `from browserforge_stealth import ScreenConstraints` |
-   | `from browserforge.headers import HeaderGenerator, Browser` | `from browserforge_stealth.headers import HeaderGenerator, Browser` (API unchanged) |
+   | `from browserforge.headers import HeaderGenerator, Browser` | `from browserforge_stealth import HeaderGenerator, Browser` (API unchanged) |
    | `FingerprintGenerator(browser="chrome", os="windows", device="mobile", locale="uk-UA")` | `FingerprintGenerator(os="windows", device_type="mobile", locale="uk-UA", timezone_id=...)` |
    | `FingerprintGenerator(screen=Screen(min_width=1280))` | `FingerprintGenerator(screen=ScreenConstraints(min_width=1280))` |
    | `fp.navigator.userAgent`, `fp.screen.width`, `fp.videoCard.renderer`, `fp.headers` | `fp.navigator["userAgent"]` (or `fp.user_agent`), `fp.screen["width"]`, `fp.video_card["renderer"]`, `fp.headers` |
@@ -199,13 +213,141 @@ and the old API (`browserforge.*`) no longer exists.
    Profiles that fail `realism_issues` carry the artifacts this fork exists to remove, so regenerate them if your
    account history allows changing the fingerprint.
 
-## Headers only
+## Generating headers only
+
+`HeaderGenerator` can be used on its own for any HTTP client (requests, httpx, curl_cffi, aiohttp, etc.):
 
 ```python
-from browserforge_stealth.headers import HeaderGenerator
+from browserforge_stealth import HeaderGenerator
 
-headers = HeaderGenerator().generate(browser="chrome", os="windows", device="desktop", locale="en-US")
+headers = HeaderGenerator().generate()
+# {
+#   'sec-ch-ua': '"Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"',
+#   'sec-ch-ua-mobile': '?0',
+#   'sec-ch-ua-platform': '"macOS"',
+#   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ...',
+#   'Accept': 'text/html,...',
+#   'Accept-Language': 'en-US;q=1.0',
+#   ...
+# }
 ```
+
+### Using with requests
+
+```python
+import requests
+from browserforge_stealth import HeaderGenerator
+
+session = requests.Session()
+session.headers = HeaderGenerator().generate()
+```
+
+### Single constraint
+
+```python
+headers = HeaderGenerator(
+    browser="chrome",
+    os="windows",
+    device="desktop",
+    locale="en-US",
+    http_version=2,
+).generate()
+```
+
+### Multiple constraints
+
+Set multiple constraints to select from. Selection frequency matches real-world browser distribution:
+
+```python
+headers = HeaderGenerator(
+    browser=("chrome", "firefox", "safari", "edge"),
+    os=("windows", "macos", "linux"),
+    device=("desktop", "mobile"),
+    locale=("en-US", "en", "uk-UA"),
+    http_version=2,
+).generate()
+```
+
+### Browser specification
+
+Use a `Browser` dataclass to pin exact version ranges. You can also set a per-browser HTTP version:
+
+```python
+from browserforge_stealth import Browser, HeaderGenerator
+
+browsers = [
+    Browser(name="chrome", min_version=130, max_version=147),
+    Browser(name="firefox", min_version=130),
+    Browser(name="edge", max_version=140, http_version=1),
+]
+headers = HeaderGenerator(browser=browsers).generate()
+```
+
+### Generate headers for an existing User-Agent
+
+Generate a matching set of headers for a specific User-Agent string:
+
+```python
+headers = HeaderGenerator().generate(
+    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"
+)
+```
+
+Pass a tuple to randomly select from multiple User-Agents by their frequency:
+
+```python
+headers = HeaderGenerator().generate(
+    user_agent=(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+    )
+)
+```
+
+### HTTP version
+
+`HeaderGenerator` supports HTTP/1 and HTTP/2. The `http_version` parameter controls which Bayesian
+network is used internally, affecting header set and ordering. In HTTP/1 mode, a `Connection: keep-alive`
+header is added. Headers are Title-Cased in both modes (e.g. `User-Agent`, `Accept-Language`); only
+`sec-ch-ua*` fields remain lowercase, as they are always sent that way by real Chrome.
+
+```python
+# HTTP/1 — includes Connection: keep-alive
+headers = HeaderGenerator(http_version=1).generate()
+
+# HTTP/2 — no Connection header (forbidden in HTTP/2)
+headers = HeaderGenerator(http_version=2).generate()  # default
+```
+
+### Overriding request-dependent headers
+
+Some headers differ per request (e.g. `Accept` for an API call vs a page load). Pass them via
+`request_dependent_headers` — they will override the generated value for that request:
+
+```python
+headers = HeaderGenerator().generate(
+    browser="chrome",
+    http_version=1,
+    request_dependent_headers={"Accept": "application/json"},
+)
+# headers['Accept'] == 'application/json'
+```
+
+### HeaderGenerator parameters
+
+Both `HeaderGenerator.__init__` and `HeaderGenerator.generate` accept the same parameters.
+Values passed to `.generate()` override the constructor defaults for that call only.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `browser` | `str \| Browser \| list` | Browser name(s) or `Browser` spec(s). Supported: `chrome`, `firefox`, `safari`, `edge`. Default: all four. |
+| `os` | `str \| list` | Operating system(s): `windows`, `macos`, `linux`, `android`, `ios`. Default: all five. |
+| `device` | `str \| list` | Device type(s): `desktop`, `mobile`. Default: both. |
+| `locale` | `str \| list` | Language locale(s) for `Accept-Language`, e.g. `en-US`, `uk-UA`. Up to 10. Default: `en-US`. |
+| `http_version` | `1 \| 2` | HTTP version (affects header set and ordering). Default: `2`. |
+| `strict` | `bool` | Raise `ValueError` instead of relaxing impossible constraints. Default: `False`. |
+| `user_agent` | `str \| list` | (`generate()` only) Pin to a specific User-Agent string or select from a tuple. |
+| `request_dependent_headers` | `dict` | (`generate()` only) Override specific headers for this request. |
 
 ## Low-level sampling
 
@@ -221,9 +363,17 @@ browserforge-stealth generate --os macos --output profile.json
 browserforge-stealth inspect profile.json
 ```
 
+You can also run it as a module:
+
+```bash
+python -m browserforge_stealth generate --os windows
+```
+
 ## Development
 
 ```bash
+git clone https://github.com/CatDogFishFrog/browserforge-stealth.git
+cd browserforge-stealth
 pip install -e ".[dev]"
 pytest && ruff check . && mypy
 ```

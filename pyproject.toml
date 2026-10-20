@@ -54,6 +54,6 @@ ignore = [
 
 [tool.mypy]
 python_version = "3.11"
-packages = ["browserforge_stealth"]
+packages = ["browserforge_stealth", "tests"]
 ignore_missing_imports = true
 warn_unreachable = true

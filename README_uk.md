@@ -1,6 +1,6 @@
 # BrowserForge-Stealth 🎭
 
-**Реалістичні, узгоджені відбитки браузера для Patchright, Playwright та антидетект-автоматизації.**
+**Реалістичні, узгоджені відбитки та заголовки браузера для Patchright, Playwright та антидетект-автоматизації.**
 
 BrowserForge-Stealth — модернізований форк [`browserforge`](https://github.com/daijro/browserforge). Він зберігає
 байєсівські мережі Apify для відбитків і заголовків, але додає перевірку реалістичності, GREASE-бренди Chromium,
@@ -29,13 +29,14 @@ BrowserForge-Stealth генерує зразок, санітизує його, �
 * **Retargeting:** UA, `appVersion`, `userAgentData` і заголовки підлаштовуються під версію рушія, залізо не змінюється.
 * **Збереження:** `to_dict()` / `from_dict()` / `to_json()` / `from_json()` з версією схеми.
 * **Інжекція через duck-typing:** працює з будь-яким контекстом, що має `add_init_script`.
+* **Лише заголовки:** `HeaderGenerator` можна використовувати окремо для будь-якого HTTP-клієнта.
 * **CLI:** `browserforge-stealth generate` / `inspect`.
 
 ## Встановлення
 
 ```bash
-pip install browserforge-stealth
-pip install "browserforge-stealth[orjson]"   # опційно: швидше завантаження JSON
+pip install git+https://github.com/CatDogFishFrog/browserforge-stealth.git
+pip install "git+https://github.com/CatDogFishFrog/browserforge-stealth.git#egg=browserforge-stealth[orjson]"  # опційно: швидше завантаження JSON
 ```
 
 Потрібен Python 3.11+. Patchright / Playwright **не є** залежностями — встановлюйте той, яким користуєтесь.
@@ -116,6 +117,17 @@ restored = Fingerprint.from_json(Path("profile.json").read_text(encoding="utf-8"
 options = restored.context_options(browser_version="156.0.8078.4")   # підгонка під реальний рушій
 ```
 
+### Обмеження розмірів екрана
+
+Можна задати мінімальний та максимальний розмір екрана:
+
+```python
+from browserforge_stealth import FingerprintGenerator, ScreenConstraints
+
+screen = ScreenConstraints(min_width=1600, min_height=900)
+fp = FingerprintGenerator(os="windows", screen=screen).generate()
+```
+
 ## Об'єкт `Fingerprint`
 
 | Член | Опис |
@@ -128,6 +140,7 @@ options = restored.context_options(browser_version="156.0.8078.4")   # підг�
 | `screen_info`, `hardware_info` | Датакласи `ScreenInfo` / `HardwareInfo`. |
 | `context_options(version)`, `init_script(version)` | Параметри контексту Playwright / JS init-скрипт. |
 | `apply(context, version)`, `apply_sync(context, version)` | Інжекція через `add_init_script`. |
+| `to_dict()`, `from_dict()`, `to_json()`, `from_json()` | Серіалізація / десеріалізація. |
 
 ## Правила реалістичності
 
@@ -141,11 +154,11 @@ Android/iOS, коректний мобільний DPR, `maxTouchPoints >= 5`, �
 `browserforge-stealth` замінює `browserforge`, але не є його псевдонімом. Назва для імпорту — `browserforge_stealth`,
 старого API (`browserforge.*`) більше не існує.
 
-1. Замініть пакет. Назви для імпорту різні, тож конфлікту немає, але старий краще прибрати:
+1. Замініть пакет:
 
    ```bash
    pip uninstall browserforge
-   pip install browserforge-stealth
+   pip install git+https://github.com/CatDogFishFrog/browserforge-stealth.git
    ```
 
 2. Оновіть імпорти та виклики:
@@ -154,7 +167,7 @@ Android/iOS, коректний мобільний DPR, `maxTouchPoints >= 5`, �
    | --- | --- |
    | `from browserforge.fingerprints import FingerprintGenerator` | `from browserforge_stealth import FingerprintGenerator` |
    | `from browserforge.fingerprints import Screen` | `from browserforge_stealth import ScreenConstraints` |
-   | `from browserforge.headers import HeaderGenerator, Browser` | `from browserforge_stealth.headers import HeaderGenerator, Browser` (API без змін) |
+   | `from browserforge.headers import HeaderGenerator, Browser` | `from browserforge_stealth import HeaderGenerator, Browser` (API без змін) |
    | `FingerprintGenerator(browser="chrome", os="windows", device="mobile", locale="uk-UA")` | `FingerprintGenerator(os="windows", device_type="mobile", locale="uk-UA", timezone_id=...)` |
    | `FingerprintGenerator(screen=Screen(min_width=1280))` | `FingerprintGenerator(screen=ScreenConstraints(min_width=1280))` |
    | `fp.navigator.userAgent`, `fp.screen.width`, `fp.videoCard.renderer`, `fp.headers` | `fp.navigator["userAgent"]` (або `fp.user_agent`), `fp.screen["width"]`, `fp.video_card["renderer"]`, `fp.headers` |
@@ -202,13 +215,139 @@ Android/iOS, коректний мобільний DPR, `maxTouchPoints >= 5`, �
    Профілі, що не проходять `realism_issues`, містять саме ті артефакти, які цей форк прибирає, тож перегенеруйте їх,
    якщо історія акаунта дозволяє змінити відбиток.
 
-## Лише заголовки
+## Генерація заголовків
+
+`HeaderGenerator` можна використовувати окремо — для requests, httpx, curl_cffi, aiohttp тощо:
 
 ```python
-from browserforge_stealth.headers import HeaderGenerator
+from browserforge_stealth import HeaderGenerator
 
-headers = HeaderGenerator().generate(browser="chrome", os="windows", device="desktop", locale="en-US")
+headers = HeaderGenerator().generate()
+# {
+#   'sec-ch-ua': '"Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"',
+#   'sec-ch-ua-mobile': '?0',
+#   'sec-ch-ua-platform': '"macOS"',
+#   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ...',
+#   'Accept': 'text/html,...',
+#   'Accept-Language': 'en-US;q=1.0',
+#   ...
+# }
 ```
+
+### Використання з requests
+
+```python
+import requests
+from browserforge_stealth import HeaderGenerator
+
+session = requests.Session()
+session.headers = HeaderGenerator().generate()
+```
+
+### Одне обмеження
+
+```python
+headers = HeaderGenerator(
+    browser="chrome",
+    os="windows",
+    device="desktop",
+    locale="en-US",
+    http_version=2,
+).generate()
+```
+
+### Декілька обмежень
+
+Можна передати кортеж або список — генератор вибиратиме між варіантами відповідно до реального розподілу браузерів:
+
+```python
+headers = HeaderGenerator(
+    browser=("chrome", "firefox", "safari", "edge"),
+    os=("windows", "macos", "linux"),
+    device=("desktop", "mobile"),
+    locale=("en-US", "en", "uk-UA"),
+    http_version=2,
+).generate()
+```
+
+### Специфікація браузера
+
+Датаклас `Browser` дозволяє точно обмежити діапазон версій. Також можна встановити HTTP-версію на рівні браузера:
+
+```python
+from browserforge_stealth import Browser, HeaderGenerator
+
+browsers = [
+    Browser(name="chrome", min_version=130, max_version=147),
+    Browser(name="firefox", min_version=130),
+    Browser(name="edge", max_version=140, http_version=1),
+]
+headers = HeaderGenerator(browser=browsers).generate()
+```
+
+### Генерація заголовків під конкретний User-Agent
+
+```python
+headers = HeaderGenerator().generate(
+    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"
+)
+```
+
+Або вибір з декількох UA за частотою:
+
+```python
+headers = HeaderGenerator().generate(
+    user_agent=(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+    )
+)
+```
+
+### HTTP-версія
+
+`HeaderGenerator` підтримує HTTP/1 та HTTP/2. Параметр `http_version` визначає, яка байєсівська мережа
+використовується — а отже, набір і порядок заголовків. У режимі HTTP/1 додається `Connection: keep-alive`.
+Заголовки у Title-Case в обох режимах (`User-Agent`, `Accept-Language`); лише `sec-ch-ua*` залишаються
+в нижньому регістрі — так їх і надсилає реальний Chrome.
+
+```python
+# HTTP/1 — додається Connection: keep-alive
+headers = HeaderGenerator(http_version=1).generate()
+
+# HTTP/2 — Connection заборонений протоколом, не включається
+headers = HeaderGenerator(http_version=2).generate()  # за замовчуванням
+```
+
+### Перевизначення заголовків запиту
+
+Деякі заголовки відрізняються залежно від запиту (наприклад, `Accept` для API vs сторінки). Передайте їх через
+`request_dependent_headers` — вони замінять згенероване значення для цього запиту:
+
+```python
+headers = HeaderGenerator().generate(
+    browser="chrome",
+    http_version=1,
+    request_dependent_headers={"Accept": "application/json"},
+)
+# headers['Accept'] == 'application/json'
+```
+
+### Параметри HeaderGenerator
+
+Обидва методи — `HeaderGenerator.__init__` та `HeaderGenerator.generate` — приймають ті самі параметри.
+Значення, передані в `.generate()`, перекривають дефолти конструктора лише для цього виклику.
+
+| Параметр | Тип | Опис |
+| --- | --- | --- |
+| `browser` | `str \| Browser \| list` | Браузер(и) або специфікація `Browser`. Підтримуються: `chrome`, `firefox`, `safari`, `edge`. За замовчуванням — всі чотири. |
+| `os` | `str \| list` | Операційна система: `windows`, `macos`, `linux`, `android`, `ios`. За замовчуванням — всі п'ять. |
+| `device` | `str \| list` | Тип пристрою: `desktop`, `mobile`. За замовчуванням — обидва. |
+| `locale` | `str \| list` | Локаль для `Accept-Language`, наприклад `uk-UA`, `en-US`. До 10 значень. За замовчуванням: `en-US`. |
+| `http_version` | `1 \| 2` | Версія HTTP (впливає на набір і порядок заголовків). За замовчуванням: `2`. |
+| `strict` | `bool` | Кидати `ValueError` замість пом'якшення неможливих обмежень. За замовчуванням: `False`. |
+| `user_agent` | `str \| list` | (лише `.generate()`) Прив'язати до конкретного User-Agent або кортежу UA. |
+| `request_dependent_headers` | `dict` | (лише `.generate()`) Перевизначити конкретні заголовки для цього запиту. |
 
 ## Низькорівнева вибірка
 
@@ -224,9 +363,17 @@ browserforge-stealth generate --os macos --output profile.json
 browserforge-stealth inspect profile.json
 ```
 
+Або як модуль:
+
+```bash
+python -m browserforge_stealth generate --os windows
+```
+
 ## Розробка
 
 ```bash
+git clone https://github.com/CatDogFishFrog/browserforge-stealth.git
+cd browserforge-stealth
 pip install -e ".[dev]"
 pytest && ruff check . && mypy
 ```
