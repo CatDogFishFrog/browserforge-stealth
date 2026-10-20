@@ -172,3 +172,10 @@ cython_debug/
 
 # daownloaded files
 data/
+
+# Internal agent notes
+.agents/
+
+# Caches
+.pytest_cache/
+.ruff_cache/

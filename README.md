@@ -1,97 +1,48 @@
-<h1 align="center">
-    BrowserForge
-</h1>
+# BrowserForge-Stealth
 
-<p align="center">
-    <a href="https://github.com/daijro/browserforge/blob/main/LICENSE">
-        <img src="https://img.shields.io/github/license/daijro/browserforge.svg?color=yellow">
-    </a>
-    <a href="https://python.org/">
-        <img src="https://img.shields.io/badge/python-3.8&#8208;3.12-blue">
-    </a>
-    <a href="https://pypi.org/project/browserforge/">
-        <img alt="PyPI" src="https://img.shields.io/pypi/v/browserforge.svg?color=orange">
-    </a>
-    <a href="https://pepy.tech/project/browserforge">
-        <img alt="PyPI" src="https://static.pepy.tech/badge/browserforge">
-    </a>
-    <a href="https://github.com/ambv/black">
-        <img src="https://img.shields.io/badge/code%20style-black-black.svg">
-    </a>
-    <a href="https://github.com/PyCQA/isort">
-        <img src="https://img.shields.io/badge/imports-isort-yellow.svg">
-    </a>
-    <a href="http://mypy-lang.org">
-        <img src="http://www.mypy-lang.org/static/mypy_badge.svg">
-    </a>
-</p>
-
-<h4 align="center">
-    🎭 Intelligent browser header & fingerprint generator
-</h4>
+Realistic, intelligent browser fingerprint generator and anti-detect automation toolkit for Python.
+A drop-in replacement and modernized fork of [`browserforge`](https://github.com/daijro/browserforge) designed specifically for anti-detect automation, web scraping, and automated testing with **Patchright**, **Playwright**, and **Undetected-Playwright**.
 
 ---
 
-## What is it?
+## Why BrowserForge-Stealth?
 
-BrowserForge is a browser header and fingerprint generator that mimics the frequency of different browsers, operating systems, and devices found in the wild.
+Standard browser fingerprint generators frequently produce synthetic signatures that trigger modern bot detection systems (Cloudflare Turnstile, DataDome, Akamai, Kasada, F5 Shape). Pure `browserforge` and naive Bayesian models often output combinations that never occur on real human devices:
 
-It is a reimplementation of [Apify's fingerprint-suite](https://github.com/apify/fingerprint-suite) in Python.
+* **Header/UA Desynchronization:** Brave-specific tokens leaked inside standard Google Chrome headers, or mismatched platform headers.
+* **Unrealistic Hardware Parameters:** `navigator.deviceMemory` values of 16 GB or 32 GB, even though Chromium strictly caps `deviceMemory` at 8 GB in all real releases.
+* **Software Renderers:** GPU strings exposing `SwiftShader`, `llvmpipe`, `Mesa`, or `VirtualBox`, immediately flagging virtualized/cloud environments.
+* **Fractional or Distorted Displays:** Inconsistent `devicePixelRatio` values, viewports larger than screen dimensions, or non-standard resolutions.
+* **Engine Version Drift:** Fingerprints pinned to outdated Chromium versions that contradict the actual version of your running browser engine.
 
----
-
-## Sponsors
-
-<a href="https://serpapi.com/use-cases/web-search-api?utm_source=camoufox" target="_blank">
-    <img width="250" alt="color horizontal" src="https://github.com/user-attachments/assets/cdf90178-869e-4f85-8288-3fe32da319d9"/>
-</a>
-
-[SerpApi, a web search API](https://serpapi.com/use-cases/web-search-api?utm_source=camoufox) to scrape Google and other search engines with a simple API.
-
----
-
-### 🚀 BrowserForge × ProxyEmpire
-
-<a href="https://proxyempire.io/?ref=camoufox&utm_source=github&utm_medium=paid_referral&utm_campaign=open_source_sponsorship&utm_content=browserforge" target="_blank">
-  <img width="400" alt="proxyempire" src="https://github.com/user-attachments/assets/d1c5f849-5cb0-4aff-b48c-530bda2ee03f" />
-</a>
-
-Using BrowserForge? Your proxy layer decides whether you scale — or get blocked.
-
-[ProxyEmpire](https://proxyempire.io/?ref=camoufox&utm_source=github&utm_medium=paid_referral&utm_campaign=open_source_sponsorship&utm_content=browserforge) delivers:
-
-- 🌍 30M+ Residential IPs (170+ countries)
-- 📱 4G/5G Mobile Proxies
-- 🔄 Rotating & Sticky Sessions
-- ⚡ Unlimited Concurrent Sessions
-- 🎯 Precise geo-targeting
-- HTTP, HTTPS & SOCKS5 Support
-
-Built for scraping, automation, and high-stealth workflows.
-
-#### 🔥 Exclusive Offer
-
-Use code **BrowserForge30**\
-Get **30% recurring discount** (not just first month).
-
-Upgrade your proxies. Reduce bans. Scale properly
+**BrowserForge-Stealth fixes every one of these failure modes.** It wraps statistical Bayesian generation with multi-pass rejection sampling, deterministic sanitization, GREASE brand generation, and runtime browser engine retargeting.
 
 ---
 
 ## Features
 
-- Uses a Bayesian generative network to mimic actual web traffic
-- Extremely fast runtime (0.1-0.2 miliseconds)
-- Easy and simple for humans to use
-- Extensive customization options for browsers, operating systems, devices, locales, and HTTP version
-- Written with type safety
+* **100% Backward Compatible:** Drop-in replacement for `browserforge`. Code using `from browserforge.fingerprints import FingerprintGenerator, Fingerprint` continues to work with zero modifications.
+* **Modern High-Level API:** Intuitive interface via `browserforge_stealth` (`generate_fingerprint`, `FingerprintGenerator`, `context_options`, `apply_to_context`).
+* **Multi-Stage Realism Filtering:** Automatic rejection sampling discards software GPUs, invalid memory caps, impossible core counts, and mismatched display geometries.
+* **Spec-Compliant Chromium GREASE Brands:** Generates authentic permutated GREASE tokens (`"Not A(Brand"`, `"Chromium"`, `"Google Chrome"`) and structured Client Hints (`Sec-CH-UA`, `Sec-CH-UA-Platform`, `Sec-CH-UA-Mobile`).
+* **Dynamic Browser Engine Retargeting:** Automatically adapts generated User-Agents and Client Hints to match the exact major version of the live browser binary.
+* **Desktop & Mobile Emulation:** Supports Windows, macOS, Linux, Android, and iOS profiles with valid viewport, touch, and platform metadata.
+* **Ready-to-Use Browser Adapters:** Helpers for Playwright and Patchright contexts (`context_options`, `build_init_script`, `apply_to_context`, `apply_to_context_sync`).
+* **Built-in CLI:** Command-line tool to generate, inspect, and export fingerprint profiles to JSON.
+* **Clean Serialization:** Full JSON and dictionary round-trip persistence (`to_dict`, `from_dict`, `to_json`, `from_json`) for session reuse.
 
 ---
 
 ## Installation
 
+```bash
+pip install browserforge-stealth
 ```
-pip install browserforge[all]
+
+Optional high-performance JSON acceleration:
+
+```bash
+pip install browserforge-stealth[orjson]
 ```
 
 ---
