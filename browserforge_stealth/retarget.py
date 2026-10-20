@@ -107,9 +107,21 @@ def retarget(fp: Any, browser_version: str | None) -> dict[str, Any]:
             raw = copy.deepcopy(fp["raw_data"])
         else:
             raw = copy.deepcopy(dict(fp))
-        os_val = fp.get("os", OperatingSystem.WINDOWS)
+        os_val = fp.get("claimed_os", fp.get("os"))
+        if not os_val:
+            nav = raw.get("navigator") or {}
+            plat = str(nav.get("platform", "")).lower()
+            uad_plat = str((nav.get("userAgentData") or {}).get("platform") or "").lower()
+            if "mac" in plat or "mac" in uad_plat:
+                os_val = OperatingSystem.MACOS
+            elif "linux" in plat or "linux" in uad_plat:
+                os_val = OperatingSystem.LINUX
+            elif "win" in plat or "win" in uad_plat:
+                os_val = OperatingSystem.WINDOWS
+            else:
+                os_val = OperatingSystem.WINDOWS
         dev_val = fp.get("device_type", DeviceType.DESKTOP)
-        locale = fp.get("locale", "en-US")
+        locale = fp.get("locale") or (raw.get("navigator") or {}).get("language") or "en-US"
     else:
         raw = copy.deepcopy(dict(fp))
         os_val = OperatingSystem.WINDOWS

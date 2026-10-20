@@ -169,7 +169,7 @@ class Fingerprint:
             if ua := nav.get("userAgent"):
                 return str(ua)
         elif nav is not None and hasattr(nav, "userAgent"):
-            return str(getattr(nav, "userAgent"))
+            return str(nav.userAgent)
 
         headers = self.raw_data.get("headers")
         if isinstance(headers, dict):
