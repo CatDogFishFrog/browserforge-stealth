@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import date, datetime, timezone
 from enum import StrEnum
@@ -20,6 +21,34 @@ class OperatingSystem(StrEnum):
 class DeviceType(StrEnum):
     DESKTOP = "desktop"
     MOBILE = "mobile"
+
+
+def coerce_os(val: OperatingSystem | str) -> OperatingSystem:
+    if isinstance(val, OperatingSystem):
+        return val
+    s = str(val).lower()
+    if s in ("windows", "win", "win32"):
+        return OperatingSystem.WINDOWS
+    if s in ("macos", "mac", "darwin", "osx"):
+        return OperatingSystem.MACOS
+    if s in ("linux",):
+        return OperatingSystem.LINUX
+    if s in ("android",):
+        return OperatingSystem.ANDROID
+    if s in ("ios", "iphone", "ipad"):
+        return OperatingSystem.IOS
+    return OperatingSystem(val)
+
+
+def coerce_device_type(val: DeviceType | str) -> DeviceType:
+    if isinstance(val, DeviceType):
+        return val
+    s = str(val).lower()
+    if s in ("desktop", "pc"):
+        return DeviceType.DESKTOP
+    if s in ("mobile", "phone", "tablet"):
+        return DeviceType.MOBILE
+    return DeviceType(val)
 
 
 @dataclass
@@ -219,6 +248,69 @@ class Fingerprint:
     @property
     def headers(self) -> dict[str, Any]:
         return self.raw_data.get("headers", {})
+
+    @property
+    def videoCard(self) -> Any:
+        vc = self.raw_data.get("videoCard")
+        if isinstance(vc, dict):
+            return _AttrDict(vc)
+        return vc
+
+    @property
+    def videoCodecs(self) -> Any:
+        return self.raw_data.get("videoCodecs", {})
+
+    @property
+    def audioCodecs(self) -> Any:
+        return self.raw_data.get("audioCodecs", {})
+
+    @property
+    def battery(self) -> Any:
+        return self.raw_data.get("battery")
+
+    @property
+    def pluginsData(self) -> Any:
+        return self.raw_data.get("pluginsData", {})
+
+    @property
+    def multimediaDevices(self) -> Any:
+        return self.raw_data.get("multimediaDevices", [])
+
+    @property
+    def fonts(self) -> Any:
+        return self.raw_data.get("fonts", [])
+
+    @property
+    def mockWebRTC(self) -> Any:
+        return self.raw_data.get("mockWebRTC", False)
+
+    @property
+    def slim(self) -> Any:
+        return self.raw_data.get("slim", False)
+
+    @property
+    def screen_info(self) -> ScreenInfo:
+        sc = self.raw_data.get("screen", {})
+        w, h = self.screen_size
+        return ScreenInfo(
+            width=w,
+            height=h,
+            device_scale_factor=self.device_scale_factor,
+            avail_width=int(sc["availWidth"]) if sc.get("availWidth") is not None else None,
+            avail_height=int(sc["availHeight"]) if sc.get("availHeight") is not None else None,
+        )
+
+    @property
+    def hardware_info(self) -> HardwareInfo:
+        return HardwareInfo(
+            cores=self.hardware_concurrency,
+            memory_gb=self.device_memory,
+            gpu_renderer=self.gpu_renderer,
+        )
+
+    def asdict(self) -> dict[str, Any]:
+        """Dictionary representation of raw_data."""
+        return copy.deepcopy(self.raw_data)
 
     def dumps(self) -> str:
         """JSON dumps of raw_data for browserforge injector compatibility."""
