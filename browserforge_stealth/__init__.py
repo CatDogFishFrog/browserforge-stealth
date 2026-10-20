@@ -1,6 +1,7 @@
 """
-BrowserForge-Stealth
-Realistic and intelligent browser header & fingerprint generator for Patchright, Playwright, and anti-detect automation.
+BrowserForge-Stealth.
+Realistic and intelligent browser header & fingerprint generator for Patchright,
+Playwright, and anti-detect automation.
 """
 
 from browserforge_stealth.errors import (
@@ -12,6 +13,12 @@ from browserforge_stealth.errors import (
 from browserforge_stealth.generator import (
     FingerprintGenerator,
     generate_fingerprint,
+)
+from browserforge_stealth.injection import (
+    apply_to_context,
+    apply_to_context_sync,
+    build_init_script,
+    context_options,
 )
 from browserforge_stealth.models import (
     DeviceType,
@@ -41,27 +48,31 @@ from browserforge_stealth.retarget import (
 __version__ = "1.3.0"
 
 __all__ = [
-    "FingerprintError",
-    "GenerationError",
-    "RealismError",
-    "SerializationError",
     "DeviceType",
     "Fingerprint",
+    "FingerprintError",
+    "FingerprintGenerator",
+    "GenerationError",
     "HardwareInfo",
     "OperatingSystem",
+    "RealismError",
     "ScreenInfo",
+    "SerializationError",
     "Viewport",
-    "FingerprintGenerator",
-    "generate_fingerprint",
+    "__version__",
+    "apply_to_context",
+    "apply_to_context_sync",
+    "build_init_script",
+    "build_user_agent",
     "chromium_brands",
     "client_hint_headers",
+    "context_options",
+    "derive_viewport",
+    "generate_fingerprint",
     "normalize_fingerprint_dict",
     "normalize_languages",
-    "sec_ch_ua",
-    "derive_viewport",
-    "realism_issues",
-    "build_user_agent",
     "parse_browser_version",
+    "realism_issues",
     "retarget",
-    "__version__",
+    "sec_ch_ua",
 ]

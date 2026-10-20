@@ -11,8 +11,11 @@ from typing import Any
 
 from browserforge.fingerprints.generator import (
     FingerprintGenerator as ClassicFingerprintGenerator,
+)
+from browserforge.fingerprints.generator import (
     Screen,
 )
+
 from browserforge_stealth.errors import GenerationError
 from browserforge_stealth.models import (
     DeviceType,
@@ -28,11 +31,12 @@ from browserforge_stealth.realism import derive_viewport, realism_issues
 def _default_os(device_type: DeviceType) -> OperatingSystem:
     if device_type == DeviceType.MOBILE:
         return OperatingSystem.ANDROID
-    if sys.platform == "win32":
-        return OperatingSystem.WINDOWS
-    if sys.platform == "darwin":
+    plat = sys.platform
+    if plat == "darwin":
         return OperatingSystem.MACOS
-    return OperatingSystem.LINUX
+    if plat.startswith("linux"):
+        return OperatingSystem.LINUX
+    return OperatingSystem.WINDOWS
 
 
 class FingerprintGenerator:
@@ -62,9 +66,7 @@ class FingerprintGenerator:
 
     def _get_classic_generator(self) -> ClassicFingerprintGenerator:
         if self._classic_generator is None:
-            self._classic_generator = ClassicFingerprintGenerator(
-                realistic=False, **self.extra_kwargs
-            )
+            self._classic_generator = ClassicFingerprintGenerator(realistic=False, **self.extra_kwargs)
         return self._classic_generator
 
     def generate(
@@ -78,27 +80,15 @@ class FingerprintGenerator:
         max_attempts: int | None = None,
         **kwargs: Any,
     ) -> Fingerprint:
-        effective_device = (
-            coerce_device_type(device_type) if device_type is not None else self.device_type
-        )
-        effective_os = (
-            coerce_os(os) if os is not None else (self.os or _default_os(effective_device))
-        )
+        effective_device = coerce_device_type(device_type) if device_type is not None else self.device_type
+        effective_os = coerce_os(os) if os is not None else (self.os or _default_os(effective_device))
         effective_locale = str(locale) if locale is not None else self.locale
-        effective_tz = (
-            str(timezone_id)
-            if timezone_id is not None
-            else self.timezone_id
-        )
+        effective_tz = str(timezone_id) if timezone_id is not None else self.timezone_id
         effective_realistic = realistic if realistic is not None else self.realistic
-        effective_max_attempts = (
-            max_attempts if max_attempts is not None else self.max_attempts
-        )
+        effective_max_attempts = max_attempts if max_attempts is not None else self.max_attempts
 
         screen_constraint = (
-            Screen(min_width=1280, min_height=720)
-            if effective_device == DeviceType.DESKTOP
-            else None
+            Screen(min_width=1280, min_height=720) if effective_device == DeviceType.DESKTOP else None
         )
 
         classic_gen = self._get_classic_generator()

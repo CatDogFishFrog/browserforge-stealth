@@ -5,7 +5,8 @@ Realism rules and viewport derivation for browser fingerprints.
 from __future__ import annotations
 
 import re
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from browserforge_stealth.models import (
     DeviceType,
@@ -42,9 +43,7 @@ _BROWSER_UI_HEIGHT: dict[OperatingSystem, int] = {
     OperatingSystem.IOS: 50,
 }
 
-_SOFTWARE_GPU_RE = re.compile(
-    r"basic render|swiftshader|llvmpipe|software|microsoft basic", re.IGNORECASE
-)
+_SOFTWARE_GPU_RE = re.compile(r"basic render|swiftshader|llvmpipe|software|microsoft basic", re.IGNORECASE)
 _OLD_INTEL_IGPU_RE = re.compile(
     r"UHD Graphics 620|HD Graphics (?:[456]\d{2,3})|Iris\(TM\) Graphics 6100", re.IGNORECASE
 )
@@ -111,7 +110,7 @@ def realism_issues(
         uad_platform = uad.get("platform")
         if expected_uach_platform and uad_platform != expected_uach_platform:
             issues.append(
-                f"userAgentData.platform={uad_platform!r} does not match OS {os_enum.value} (userAgentData.platform не відповідає ОС)"
+                f"userAgentData.platform={uad_platform!r} does not match OS {os_enum.value}"
             )
 
         # DPR check
@@ -134,9 +133,7 @@ def realism_issues(
         if not isinstance(cores, int) or not (2 <= cores <= 64):
             issues.append(f"hardwareConcurrency={cores!r} outside 2..64")
         elif cores > _OLD_IGPU_MAX_THREADS and _OLD_INTEL_IGPU_RE.search(renderer):
-            issues.append(
-                f"{cores} threads (потоків) impossible with old integrated GPU ({renderer[:40]!r})"
-            )
+            issues.append(f"{cores} threads (потоків) impossible with old integrated GPU ({renderer[:40]!r})")
 
         # vendor
         if navigator.get("vendor") != "Google Inc.":
@@ -150,9 +147,7 @@ def realism_issues(
         # Touch check
         max_touch_points = navigator.get("maxTouchPoints")
         if not isinstance(max_touch_points, int) or max_touch_points < 5:
-            issues.append(
-                f"Mobile device requires maxTouchPoints >= 5, got {max_touch_points!r}"
-            )
+            issues.append(f"Mobile device requires maxTouchPoints >= 5, got {max_touch_points!r}")
 
         # DPR check
         dpr = screen.get("devicePixelRatio")
@@ -170,9 +165,8 @@ def realism_issues(
         if os_enum == OperatingSystem.ANDROID:
             if uad_platform and uad_platform != "Android":
                 issues.append(f"userAgentData.platform={uad_platform!r} must match 'Android'")
-        elif os_enum == OperatingSystem.IOS:
-            if uad_platform and uad_platform not in ("iOS", ""):
-                issues.append(f"userAgentData.platform={uad_platform!r} must match 'iOS'")
+        elif os_enum == OperatingSystem.IOS and uad_platform and uad_platform not in ("iOS", ""):
+            issues.append(f"userAgentData.platform={uad_platform!r} must match 'iOS'")
 
         # Screen dimensions
         if width < 320 or height < 480:

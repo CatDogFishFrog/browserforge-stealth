@@ -72,9 +72,7 @@ def normalize_languages(locale: str) -> tuple[list[str], str]:
     else:
         languages = [locale, *([base] if base != locale else []), "en-US", "en"]
     unique = list(dict.fromkeys(languages))
-    parts = [unique[0]] + [
-        f"{lang};q={max(1.0 - 0.1 * i, 0.1):.1f}" for i, lang in enumerate(unique[1:], 1)
-    ]
+    parts = [unique[0]] + [f"{lang};q={max(1.0 - 0.1 * i, 0.1):.1f}" for i, lang in enumerate(unique[1:], 1)]
     return unique, ",".join(parts)
 
 

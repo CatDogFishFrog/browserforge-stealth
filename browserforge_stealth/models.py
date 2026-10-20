@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import copy
-from dataclasses import asdict, dataclass, field, is_dataclass
-from datetime import date, datetime, timezone
-from enum import StrEnum
 import json
-from typing import Any, Iterator, Mapping
+from collections.abc import Iterator, Mapping
+from dataclasses import asdict, dataclass, field, is_dataclass
+from datetime import UTC, date, datetime
+from enum import StrEnum
+from typing import Any
 
 from browserforge_stealth.errors import SerializationError
 
@@ -86,14 +87,14 @@ class _AttrDict(dict):
                 return _AttrDict(val)
             return val
         except KeyError:
-            raise AttributeError(f"No attribute {name!r}")
+            raise AttributeError(f"No attribute {name!r}") from None
 
     def __setattr__(self, name: str, value: Any) -> None:
         self[name] = value
 
 
 def _default_json_serializer(o: Any) -> Any:
-    if is_dataclass(o):
+    if is_dataclass(o) and not isinstance(o, type):
         return asdict(o)
     if isinstance(o, (datetime, date)):
         return o.isoformat()
@@ -105,7 +106,7 @@ def _default_json_serializer(o: Any) -> Any:
 @dataclass
 class Fingerprint:
     schema_version: int = 1
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     device_type: DeviceType = DeviceType.DESKTOP
     os: OperatingSystem = OperatingSystem.WINDOWS
     locale: str = "en-US"
@@ -138,12 +139,12 @@ class Fingerprint:
         self.schema_version = int(schema_version)
 
         if created_at is None:
-            self.created_at = datetime.now(timezone.utc)
+            self.created_at = datetime.now(UTC)
         elif isinstance(created_at, str):
             parsed = datetime.fromisoformat(created_at)
-            self.created_at = parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+            self.created_at = parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
         elif isinstance(created_at, datetime):
-            self.created_at = created_at if created_at.tzinfo else created_at.replace(tzinfo=timezone.utc)
+            self.created_at = created_at if created_at.tzinfo else created_at.replace(tzinfo=UTC)
         else:
             raise TypeError(f"Invalid created_at type: {type(created_at).__name__}")
 
@@ -167,8 +168,8 @@ class Fingerprint:
         if isinstance(nav, dict):
             if ua := nav.get("userAgent"):
                 return str(ua)
-        elif hasattr(nav, "userAgent"):
-            return str(nav.userAgent)
+        elif nav is not None and hasattr(nav, "userAgent"):
+            return str(getattr(nav, "userAgent"))
 
         headers = self.raw_data.get("headers")
         if isinstance(headers, dict):
@@ -317,10 +318,13 @@ class Fingerprint:
         return json.dumps(self.raw_data, default=_default_json_serializer)
 
     def to_dict(self) -> dict[str, Any]:
+        dev_val = (
+            self.device_type.value if isinstance(self.device_type, DeviceType) else self.device_type
+        )
         return {
             "schema_version": self.schema_version,
             "created_at": self.created_at.isoformat(),
-            "device_type": str(self.device_type.value if isinstance(self.device_type, DeviceType) else self.device_type),
+            "device_type": str(dev_val),
             "os": str(self.os.value if isinstance(self.os, OperatingSystem) else self.os),
             "locale": self.locale,
             "timezone_id": self.timezone_id,
@@ -340,13 +344,13 @@ class Fingerprint:
 
             created_at_val = d.get("created_at")
             if created_at_val is None:
-                created_at = datetime.now(timezone.utc)
+                created_at = datetime.now(UTC)
             elif isinstance(created_at_val, datetime):
-                created_at = created_at_val if created_at_val.tzinfo else created_at_val.replace(tzinfo=timezone.utc)
+                created_at = created_at_val if created_at_val.tzinfo else created_at_val.replace(tzinfo=UTC)
             elif isinstance(created_at_val, str):
                 created_at = datetime.fromisoformat(created_at_val)
                 if created_at.tzinfo is None:
-                    created_at = created_at.replace(tzinfo=timezone.utc)
+                    created_at = created_at.replace(tzinfo=UTC)
             else:
                 raise ValueError(f"Invalid created_at type: {type(created_at_val).__name__}")
 
@@ -426,3 +430,27 @@ class Fingerprint:
 
     def items(self):
         return self.raw_data.items()
+
+    def context_options(self, browser_version: str | None = None) -> dict[str, Any]:
+        """Builds context dictionary suitable for browser.new_context(**options)."""
+        from browserforge_stealth.injection import context_options
+
+        return context_options(self, browser_version=browser_version)
+
+    def init_script(self, browser_version: str | None = None) -> str:
+        """Builds JS init script overriding browser APIs before page scripts execute."""
+        from browserforge_stealth.injection import build_init_script
+
+        return build_init_script(self, browser_version=browser_version)
+
+    async def apply(self, context: Any, browser_version: str | None = None) -> None:
+        """Injects fingerprint into an async browser context via add_init_script."""
+        from browserforge_stealth.injection import apply_to_context
+
+        await apply_to_context(context, self, browser_version=browser_version)
+
+    def apply_sync(self, context: Any, browser_version: str | None = None) -> None:
+        """Injects fingerprint into a sync browser context via add_init_script."""
+        from browserforge_stealth.injection import apply_to_context_sync
+
+        apply_to_context_sync(context, self, browser_version=browser_version)

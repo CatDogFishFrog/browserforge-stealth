@@ -6,7 +6,8 @@ from __future__ import annotations
 
 import copy
 import re
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from browserforge_stealth.models import (
     DeviceType,
@@ -75,16 +76,14 @@ def build_user_agent(
                 f"Mozilla/5.0 ({_UA_SYSTEM_TOKEN[os_enum]}) AppleWebKit/605.1.15 (KHTML, like Gecko) "
                 f"CriOS/{major}.0.0.0 Mobile/15E148 Safari/604.1"
             )
+        token = _UA_SYSTEM_TOKEN[OperatingSystem.ANDROID]
         return (
-            f"Mozilla/5.0 ({_UA_SYSTEM_TOKEN[OperatingSystem.ANDROID]}) AppleWebKit/537.36 (KHTML, like Gecko) "
+            f"Mozilla/5.0 ({token}) AppleWebKit/537.36 (KHTML, like Gecko) "
             f"Chrome/{major}.0.0.0 Mobile Safari/537.36"
         )
 
     token = _UA_SYSTEM_TOKEN.get(os_enum, _UA_SYSTEM_TOKEN[OperatingSystem.WINDOWS])
-    return (
-        f"Mozilla/5.0 ({token}) AppleWebKit/537.36 (KHTML, like Gecko) "
-        f"Chrome/{major}.0.0.0 Safari/537.36"
-    )
+    return f"Mozilla/5.0 ({token}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{major}.0.0.0 Safari/537.36"
 
 
 def retarget(fp: Any, browser_version: str | None) -> dict[str, Any]:
