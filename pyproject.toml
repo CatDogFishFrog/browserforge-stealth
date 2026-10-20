@@ -8,7 +8,8 @@ version = "2.0.0"
 description = "Realistic and intelligent browser header & fingerprint generator for Patchright, Playwright, and anti-detect automation"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "Apache-2.0"
+license = "GPL-3.0-only"
+license-files = ["LICENSE", "NOTICE.md", "licenses/*"]
 authors = [
     { name = "daijro" },
     { name = "CatDogFishFrog" }

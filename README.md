@@ -134,6 +134,71 @@ least 1280x720, `deviceMemory <= 8`, at most 8 threads for old Intel iGPUs. Mobi
 DPR, `maxTouchPoints >= 5`, `Mobile` plus `Android`/`iPhone` tokens, `sec-ch-ua-mobile: ?1`. Inspect any payload with
 `realism_issues(fp, os, device_type)`.
 
+## Migrating from `browserforge`
+
+`browserforge-stealth` replaces `browserforge`; it is not a drop-in alias. The import name is `browserforge_stealth`,
+and the old API (`browserforge.*`) no longer exists.
+
+1. Swap the package. The two use different import names, so they do not conflict, but you should remove the old one:
+
+   ```bash
+   pip uninstall browserforge
+   pip install browserforge-stealth
+   ```
+
+2. Update imports and calls:
+
+   | `browserforge` | `browserforge-stealth` |
+   | --- | --- |
+   | `from browserforge.fingerprints import FingerprintGenerator` | `from browserforge_stealth import FingerprintGenerator` |
+   | `from browserforge.fingerprints import Screen` | `from browserforge_stealth import ScreenConstraints` |
+   | `from browserforge.headers import HeaderGenerator, Browser` | `from browserforge_stealth.headers import HeaderGenerator, Browser` (API unchanged) |
+   | `FingerprintGenerator(browser="chrome", os="windows", device="mobile", locale="uk-UA")` | `FingerprintGenerator(os="windows", device_type="mobile", locale="uk-UA", timezone_id=...)` |
+   | `FingerprintGenerator(screen=Screen(min_width=1280))` | `FingerprintGenerator(screen=ScreenConstraints(min_width=1280))` |
+   | `fp.navigator.userAgent`, `fp.screen.width`, `fp.videoCard.renderer`, `fp.headers` | `fp.navigator["userAgent"]` (or `fp.user_agent`), `fp.screen["width"]`, `fp.video_card["renderer"]`, `fp.headers` |
+   | `fp.dumps()` | `fp.to_json()` (full profile with metadata) or `json.dumps(fp.raw_data)` (payload only) |
+   | `InjectFunction(fp)` | `fp.init_script(browser_version)` |
+   | `await AsyncNewContext(browser, fp)` | `context = await browser.new_context(**fp.context_options(browser.version))`, then `await fp.apply(context, browser.version)` |
+   | `NewContext(browser, fp)` (sync) | `context = browser.new_context(**fp.context_options(browser.version))`, then `fp.apply_sync(context, browser.version)` |
+   | `browserforge.injectors.pyppeteer`, `browserforge.injectors.undetected_playwright` | Removed. Use Patchright or Playwright. |
+   | `python -m browserforge update/remove`, `browserforge.download` | Removed (model files are bundled). |
+
+3. Review the behavior changes:
+
+   * Generation is **realistic by default** and **Chrome-only** (rejection sampling, sanitized payload).
+     Pass `browser=("firefox",)` etc. to the generator only if you accept unrealistic results for it.
+   * The OS defaults to the host OS (Android for `device_type="mobile"`) instead of a random one.
+   * `mock_webrtc` and `slim` options are gone; the payload always has both set to `False`.
+   * Contexts use `color_scheme="light"` (the old injectors forced dark mode) and carry the timezone, `is_mobile`
+     and `has_touch` of the profile.
+   * `pluginsData`, `multimediaDevices` and `fonts` are dropped from the payload; `navigator.webdriver` is `False`.
+   * Generation errors raise `GenerationError` (subclass of `FingerprintError`) instead of `ValueError`.
+
+4. Convert profiles you stored with `fp.dumps()`. The old JSON has the same payload layout, so wrap it:
+
+   ```python
+   import json
+   from pathlib import Path
+
+   from browserforge_stealth import Fingerprint, derive_viewport, realism_issues
+
+   raw = json.loads(Path("old_profile.json").read_text(encoding="utf-8"))
+   os_name, device = "windows", "desktop"          # what the profile was generated for
+   fp = Fingerprint(
+       os=os_name,
+       device_type=device,
+       locale=raw["navigator"]["language"],
+       viewport=derive_viewport(raw, os_name, device),
+       raw_data=raw,
+   )
+   if realism_issues(fp, os_name, device):
+       ...  # old profile has artifacts (Brave traces, 16 GB RAM, software GPU): regenerate it instead
+   Path("new_profile.json").write_text(fp.to_json(indent=2), encoding="utf-8")
+   ```
+
+   Profiles that fail `realism_issues` carry the artifacts this fork exists to remove, so regenerate them if your
+   account history allows changing the fingerprint.
+
 ## Headers only
 
 ```python
@@ -166,5 +231,6 @@ pytest && ruff check . && mypy
 ## Credits and license
 
 Based on [daijro/browserforge](https://github.com/daijro/browserforge) and Apify's
-[fingerprint-suite](https://github.com/apify/fingerprint-suite) (bundled `utils.js`, Apache-2.0).
-Licensed under Apache-2.0, see [LICENSE](LICENSE).
+[fingerprint-suite](https://github.com/apify/fingerprint-suite) (bundled `utils.js`), both Apache-2.0; their notices
+are kept in [NOTICE.md](NOTICE.md). BrowserForge-Stealth itself is licensed under the
+**GNU General Public License v3.0**, see [LICENSE](LICENSE).

@@ -136,6 +136,72 @@ options = restored.context_options(browser_version="156.0.8078.4")   # підг�
 Android/iOS, коректний мобільний DPR, `maxTouchPoints >= 5`, токени `Mobile` та `Android`/`iPhone`,
 `sec-ch-ua-mobile: ?1`. Перевірити будь-яке навантаження: `realism_issues(fp, os, device_type)`.
 
+## Міграція зі старого `browserforge`
+
+`browserforge-stealth` замінює `browserforge`, але не є його псевдонімом. Назва для імпорту — `browserforge_stealth`,
+старого API (`browserforge.*`) більше не існує.
+
+1. Замініть пакет. Назви для імпорту різні, тож конфлікту немає, але старий краще прибрати:
+
+   ```bash
+   pip uninstall browserforge
+   pip install browserforge-stealth
+   ```
+
+2. Оновіть імпорти та виклики:
+
+   | `browserforge` | `browserforge-stealth` |
+   | --- | --- |
+   | `from browserforge.fingerprints import FingerprintGenerator` | `from browserforge_stealth import FingerprintGenerator` |
+   | `from browserforge.fingerprints import Screen` | `from browserforge_stealth import ScreenConstraints` |
+   | `from browserforge.headers import HeaderGenerator, Browser` | `from browserforge_stealth.headers import HeaderGenerator, Browser` (API без змін) |
+   | `FingerprintGenerator(browser="chrome", os="windows", device="mobile", locale="uk-UA")` | `FingerprintGenerator(os="windows", device_type="mobile", locale="uk-UA", timezone_id=...)` |
+   | `FingerprintGenerator(screen=Screen(min_width=1280))` | `FingerprintGenerator(screen=ScreenConstraints(min_width=1280))` |
+   | `fp.navigator.userAgent`, `fp.screen.width`, `fp.videoCard.renderer`, `fp.headers` | `fp.navigator["userAgent"]` (або `fp.user_agent`), `fp.screen["width"]`, `fp.video_card["renderer"]`, `fp.headers` |
+   | `fp.dumps()` | `fp.to_json()` (повний профіль із метаданими) або `json.dumps(fp.raw_data)` (лише навантаження) |
+   | `InjectFunction(fp)` | `fp.init_script(browser_version)` |
+   | `await AsyncNewContext(browser, fp)` | `context = await browser.new_context(**fp.context_options(browser.version))`, потім `await fp.apply(context, browser.version)` |
+   | `NewContext(browser, fp)` (sync) | `context = browser.new_context(**fp.context_options(browser.version))`, потім `fp.apply_sync(context, browser.version)` |
+   | `browserforge.injectors.pyppeteer`, `browserforge.injectors.undetected_playwright` | Видалено. Використовуйте Patchright або Playwright. |
+   | `python -m browserforge update/remove`, `browserforge.download` | Видалено (файли моделей вбудовані). |
+
+3. Врахуйте зміни поведінки:
+
+   * Генерація **реалістична за замовчуванням** і **лише Chrome** (rejection sampling, санітизоване навантаження).
+     Передавайте `browser=("firefox",)` тощо лише якщо готові до нереалістичних результатів для нього.
+   * ОС за замовчуванням — ОС хоста (Android для `device_type="mobile"`), а не випадкова.
+   * Опцій `mock_webrtc` та `slim` більше немає; у навантаженні обидві завжди `False`.
+   * Контексти використовують `color_scheme="light"` (старі інжектори примусово ставили dark) і містять часовий пояс,
+     `is_mobile` та `has_touch` профілю.
+   * `pluginsData`, `multimediaDevices` та `fonts` прибрано з навантаження; `navigator.webdriver` — `False`.
+   * Помилки генерації — `GenerationError` (підклас `FingerprintError`) замість `ValueError`.
+
+4. Перетворіть профілі, збережені через `fp.dumps()`. Старий JSON має ту саму структуру навантаження, тож його
+   достатньо обгорнути:
+
+   ```python
+   import json
+   from pathlib import Path
+
+   from browserforge_stealth import Fingerprint, derive_viewport, realism_issues
+
+   raw = json.loads(Path("old_profile.json").read_text(encoding="utf-8"))
+   os_name, device = "windows", "desktop"          # для чого профіль генерували
+   fp = Fingerprint(
+       os=os_name,
+       device_type=device,
+       locale=raw["navigator"]["language"],
+       viewport=derive_viewport(raw, os_name, device),
+       raw_data=raw,
+   )
+   if realism_issues(fp, os_name, device):
+       ...  # у старому профілі є артефакти (сліди Brave, 16 ГБ RAM, програмний GPU): краще згенерувати новий
+   Path("new_profile.json").write_text(fp.to_json(indent=2), encoding="utf-8")
+   ```
+
+   Профілі, що не проходять `realism_issues`, містять саме ті артефакти, які цей форк прибирає, тож перегенеруйте їх,
+   якщо історія акаунта дозволяє змінити відбиток.
+
 ## Лише заголовки
 
 ```python
@@ -168,5 +234,6 @@ pytest && ruff check . && mypy
 ## Подяки та ліцензія
 
 Основа — [daijro/browserforge](https://github.com/daijro/browserforge) та
-[fingerprint-suite](https://github.com/apify/fingerprint-suite) від Apify (вбудований `utils.js`, Apache-2.0).
-Ліцензія Apache-2.0, див. [LICENSE](LICENSE).
+[fingerprint-suite](https://github.com/apify/fingerprint-suite) від Apify (вбудований `utils.js`), обидва під
+Apache-2.0; їхні повідомлення збережено в [NOTICE.md](NOTICE.md). Сам BrowserForge-Stealth ліцензовано під
+**GNU General Public License v3.0**, див. [LICENSE](LICENSE).
