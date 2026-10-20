@@ -21,16 +21,16 @@ SUPPORTED_DEVICES = ("desktop", "mobile")
 SUPPORTED_HTTP_VERSIONS = ("1", "2")
 MISSING_VALUE_DATASET_TOKEN = "*MISSING_VALUE*"
 HTTP1_SEC_FETCH_ATTRIBUTES = {
-    "Sec-Fetch-Mode": "same-site",
-    "Sec-Fetch-Dest": "navigate",
-    "Sec-Fetch-Site": "?1",
-    "Sec-Fetch-User": "document",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-User": "?1",
+    "Sec-Fetch-Dest": "document",
 }
 HTTP2_SEC_FETCH_ATTRIBUTES = {
-    "sec-fetch-mode": "same-site",
-    "sec-fetch-dest": "navigate",
-    "sec-fetch-site": "?1",
-    "sec-fetch-user": "document",
+    "sec-fetch-site": "none",
+    "sec-fetch-mode": "navigate",
+    "sec-fetch-user": "?1",
+    "sec-fetch-dest": "document",
 }
 ListOrString: TypeAlias = tuple[str, ...] | list[str] | str
 

@@ -135,7 +135,7 @@ fp = FingerprintGenerator(os="windows", screen=screen).generate()
 | `schema_version`, `created_at` | Метадані серіалізації (час у UTC). |
 | `device_type`, `os`, `locale`, `timezone_id`, `viewport` | Типізовані метадані контексту. |
 | `raw_data` | Корисне навантаження для інжекції: `navigator`, `screen`, `headers`, `videoCard`, кодеки, батарея. |
-| `navigator`, `screen`, `headers`, `video_card` | Секції навантаження (звичайні словники, лише читання). |
+| `navigator`, `screen`, `headers`, `video_card` | Секції навантаження (звичайні словники, лише читання). `fp.headers` містить лише поле `Accept-Language`, яке надходить з байєсівського зразка; повний набір HTTP-заголовків (`sec-ch-ua`, `User-Agent` тощо) збирається під час retargeting і доступний через `context_options()` у ключі `extra_http_headers`. |
 | `user_agent`, `screen_size`, `device_scale_factor`, `gpu_renderer`, `hardware_concurrency`, `device_memory` | Типізовані геттери. |
 | `screen_info`, `hardware_info` | Датакласи `ScreenInfo` / `HardwareInfo`. |
 | `context_options(version)`, `init_script(version)` | Параметри контексту Playwright / JS init-скрипт. |
@@ -148,6 +148,11 @@ fp = FingerprintGenerator(os="windows", screen=screen).generate()
 екран не менший за 1280x720, `deviceMemory <= 8`, не більше 8 потоків для старих Intel iGPU. Мобільні: лише
 Android/iOS, коректний мобільний DPR, `maxTouchPoints >= 5`, токени `Mobile` та `Android`/`iPhone`,
 `sec-ch-ua-mobile: ?1`. Перевірити будь-яке навантаження: `realism_issues(fp, os, device_type)`.
+
+> **Примітка щодо iOS:** Байєсівська мережа має обмежену кількість iOS-даних. Реалістична генерація
+> (`realistic=True`, стандартно) закінчиться `GenerationError` після вичерпання спроб, оскільки наявні
+> зразки не проходять перевірку мобільного DPR або програмного GPU. Якщо потрібні iOS-відбитки,
+> передавайте `realistic=False` і розглядайте результат як наближений, а не статистично перевірений.
 
 ## Міграція зі старого `browserforge`
 
@@ -353,6 +358,15 @@ headers = HeaderGenerator().generate(
 
 `browserforge_stealth.sampler.FingerprintSampler` бере сирі зразки з байєсівської мережі (з опційними
 `ScreenConstraints`) без фільтрації реалістичності. Якщо сирі дані не потрібні — користуйтесь `FingerprintGenerator`.
+
+```python
+from browserforge_stealth.sampler import FingerprintSampler
+from browserforge_stealth import ScreenConstraints
+
+sampler = FingerprintSampler()
+raw: dict = sampler.sample()                                     # без обмежень
+raw = sampler.sample(screen=ScreenConstraints(min_width=1280))   # з обмеженням екрана
+```
 
 ## CLI
 

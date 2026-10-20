@@ -134,7 +134,7 @@ fp = FingerprintGenerator(os="windows", screen=screen).generate()
 | `schema_version`, `created_at` | Serialization metadata (UTC timestamp). |
 | `device_type`, `os`, `locale`, `timezone_id`, `viewport` | Typed context metadata. |
 | `raw_data` | Injectable payload: `navigator`, `screen`, `headers`, `videoCard`, codecs, battery. |
-| `navigator`, `screen`, `headers`, `video_card` | Read-only views of the payload sections (plain dicts). |
+| `navigator`, `screen`, `headers`, `video_card` | Read-only views of the payload sections (plain dicts). `fp.headers` contains only the locale-derived `Accept-Language` field from the Bayesian sample; the full set of HTTP headers (`sec-ch-ua`, `User-Agent`, etc.) is assembled during retargeting and exposed via `context_options()` as `extra_http_headers`. |
 | `user_agent`, `screen_size`, `device_scale_factor`, `gpu_renderer`, `hardware_concurrency`, `device_memory` | Typed getters. |
 | `screen_info`, `hardware_info` | `ScreenInfo` / `HardwareInfo` dataclasses. |
 | `context_options(version)`, `init_script(version)` | Playwright context kwargs / JS init script. |
@@ -147,6 +147,11 @@ Desktop: no software GPUs, no foreign browsers in the UA, platform matches OS, a
 least 1280x720, `deviceMemory <= 8`, at most 8 threads for old Intel iGPUs. Mobile: Android/iOS only, valid mobile
 DPR, `maxTouchPoints >= 5`, `Mobile` plus `Android`/`iPhone` tokens, `sec-ch-ua-mobile: ?1`. Inspect any payload with
 `realism_issues(fp, os, device_type)`.
+
+> **iOS note:** The Bayesian network has limited iOS data. Realistic iOS generation (`realistic=True`, the
+> default) will raise `GenerationError` after exhausting all attempts because available samples fail the
+> mobile DPR and software-GPU checks. Use `realistic=False` if you need iOS fingerprints, and treat the
+> result as approximate rather than statistically verified.
 
 ## Migrating from `browserforge`
 
@@ -353,6 +358,15 @@ Values passed to `.generate()` override the constructor defaults for that call o
 
 `browserforge_stealth.sampler.FingerprintSampler` draws raw samples from the Bayesian network with optional
 `ScreenConstraints`, without any realism filtering. Use `FingerprintGenerator` unless you need raw data.
+
+```python
+from browserforge_stealth.sampler import FingerprintSampler
+from browserforge_stealth import ScreenConstraints
+
+sampler = FingerprintSampler()
+raw: dict = sampler.sample()                                     # no constraints
+raw = sampler.sample(screen=ScreenConstraints(min_width=1280))   # with screen constraint
+```
 
 ## CLI
 
