@@ -73,7 +73,7 @@ def realism_issues(
     # Common GPU check
     renderer = str(gpu.get("renderer", ""))
     if not renderer or _SOFTWARE_GPU_RE.search(renderer):
-        issues.append(f"Software or empty GPU renderer: {renderer!r} (програмний або порожній GPU)")
+        issues.append(f"Software or empty GPU renderer: {renderer!r}")
 
     # Common screen available bounds
     width = int(screen.get("width") or 0)
@@ -82,21 +82,21 @@ def realism_issues(
     avail_h = int(screen.get("availHeight") or 0)
     if (avail_w and avail_w > width) or (avail_h and avail_h > height):
         issues.append(
-            f"Available screen area exceeds screen dimensions (доступна область більша за екран): "
+            f"Available screen area exceeds screen dimensions: "
             f"availWidth={avail_w} > width={width} or availHeight={avail_h} > height={height}"
         )
 
     if dev_enum == DeviceType.DESKTOP:
         # Desktop UA clean Chrome check
         if "Chrome/" not in ua or _FOREIGN_BROWSER_UA_RE.search(ua):
-            issues.append(f"UA is not clean Chrome (UA не є чистим Chrome): {ua!r}")
+            issues.append(f"UA is not clean Chrome: {ua!r}")
 
         # platform matches OS
         expected_platform = _OS_PLATFORM.get(os_enum)
         nav_platform = navigator.get("platform")
         if expected_platform and nav_platform != expected_platform:
             issues.append(
-                f"navigator.platform={nav_platform!r} does not match {os_enum.value} (platform не відповідає)"
+                f"navigator.platform={nav_platform!r} does not match {os_enum.value}"
             )
 
         # userAgentData.platform matches OS
@@ -109,11 +109,11 @@ def realism_issues(
         dpr = screen.get("devicePixelRatio")
         allowed_dpr = _ALLOWED_DPR.get(os_enum, frozenset({1.0, 2.0}))
         if not isinstance(dpr, (int, float)) or float(dpr) not in allowed_dpr:
-            issues.append(f"Non-standard DPR (нестандартний DPR): {dpr!r}")
+            issues.append(f"Non-standard DPR: {dpr!r}")
 
         # Screen dimensions
         if width < 1280 or height < 720:
-            issues.append(f"Screen too small (занадто малий екран): {width}x{height} (min 1280x720)")
+            issues.append(f"Screen too small: {width}x{height} (min 1280x720)")
 
         # deviceMemory
         memory = navigator.get("deviceMemory")
@@ -125,7 +125,7 @@ def realism_issues(
         if not isinstance(cores, int) or not (2 <= cores <= 64):
             issues.append(f"hardwareConcurrency={cores!r} outside 2..64")
         elif cores > _OLD_IGPU_MAX_THREADS and _OLD_INTEL_IGPU_RE.search(renderer):
-            issues.append(f"{cores} threads (потоків) impossible with old integrated GPU ({renderer[:40]!r})")
+            issues.append(f"{cores} threads impossible with old integrated GPU ({renderer[:40]!r})")
 
         # vendor
         if navigator.get("vendor") != "Google Inc.":
@@ -162,7 +162,7 @@ def realism_issues(
 
         # Screen dimensions
         if width < 320 or height < 480:
-            issues.append(f"Screen too small for mobile (занадто малий екран): {width}x{height}")
+            issues.append(f"Screen too small for mobile: {width}x{height}")
 
     return issues
 
